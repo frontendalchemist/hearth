@@ -8,45 +8,51 @@ Phase 0 is the pre-build foundation: infrastructure, auth, design system, securi
 
 This plan is written for a **solo developer** starting from scratch. The original team-sized setup (multi-account AWS org, ECS Fargate, Aurora, ArgoCD, Datadog) is the eventual target — but starting there would cost $500–800/month before a single user signs up and take weeks to configure. Instead, infrastructure is organized into three stages that you migrate through as the product grows:
 
-| Stage | When | Target cost | Who's building |
-|---|---|---|---|
-| **Stage 1: Solo Build** | Now → ~500 users | ~$20–50/mo | Just you |
-| **Stage 2: Early Traction** | 500–5,000 users | ~$150–300/mo | You + maybe 1–2 people |
-| **Stage 3: Team Scale** | 5,000+ users, hiring | $500+/mo | Full engineering team |
+| Stage                       | When                 | Target cost  | Who's building         |
+| --------------------------- | -------------------- | ------------ | ---------------------- |
+| **Stage 1: Solo Build**     | Now → ~500 users     | ~$20–50/mo   | Just you               |
+| **Stage 2: Early Traction** | 500–5,000 users      | ~$150–300/mo | You + maybe 1–2 people |
+| **Stage 3: Team Scale**     | 5,000+ users, hiring | $500+/mo     | Full engineering team  |
 
 The critical design constraint: **your application code should not need to change between stages** — only where it's deployed changes. All service choices below respect this.
 
 Milestones run largely in parallel:
+
 - **Track A (Infra + Security):** 0.2 → 0.5 → 0.7
 - **Track B (Product + Compliance):** 0.1 → 0.4 → 0.3 → 0.6
 
 ---
 
-## Milestone 0.1 — Project Setup *(Week 1)*
+## Milestone 0.1 — Project Setup _(Week 1)_
 
 ### GitHub Setup
 
 For a solo developer, you don't need a GitHub Organization yet — a personal account with a private repo is fine and free. Create the org when you hire your first engineer.
 
 **Solo setup (do now):**
-- [ ] Create a private GitHub repo: `hearth` under your personal account
-- [ ] Enable branch protection on `main`: require PR + passing CI before merge (even solo, this prevents accidental force-pushes)
-- [ ] Enable **Dependabot alerts** and **secret scanning** (both free on private repos)
-- [ ] Enable **GitHub Actions** — free tier gives 2,000 minutes/month on private repos
+
+- [x] Create a private GitHub repo: `hearth` under your personal account
+- [x] Enable branch protection on `main`: require PR before merging (skip "require status checks" for now — see note below)
+- [x] Enable **Dependabot alerts** (free on private repos — Settings → Code security and analysis)
+- [x] Secret scanning via **Gitleaks** — runs automatically in CI via `ci.yml` (GitHub's native secret scanning requires a paid plan on private repos)
+- [x] Enable **GitHub Actions** — free tier gives 2,000 minutes/month on private repos
+- [ ] _(After first CI run)_ Go back to branch ruleset → add **Require status checks to pass** → select the `CI` check → also enable **Do not allow bypassing the above settings**
 
 **When you hire your first engineer, upgrade to a GitHub Organization:**
 
 Create the org, then configure Auth0 as a SAML IdP for SSO. Org name must be decided upfront — it's baked into the SAML audience URL and is painful to change.
 
 In Auth0:
+
 1. **Applications** → **Create Application** → **Regular Web App** → name it "GitHub SSO"
 2. **Addons** tab → enable **SAML2 Web App** with this config:
+
 ```json
 {
   "audience": "https://github.com/orgs/YOUR-ORG-NAME",
   "mappings": {
     "email": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
-    "name":  "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"
+    "name": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"
   },
   "nameIdentifierFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
   "nameIdentifierProbes": [
@@ -54,15 +60,18 @@ In Auth0:
   ]
 }
 ```
+
 3. Copy the **Identity Provider Login URL** and **Certificate** from the Usage tab
 
 In GitHub:
+
 1. Org settings → **Security** → **Authentication security** → Enable SAML
 2. Paste Auth0's Login URL, issuer (`https://YOUR-TENANT.auth0.com/`), and certificate
 3. Click **Test SAML configuration** — fix any errors before saving
 4. **Do not** check "Require SAML" yet — each member must link their account first at `https://github.com/orgs/YOUR-ORG/sso`, then you enforce it
 
 Org hardening settings (set these when creating the org):
+
 ```
 Base permissions:        None
 Repository creation:     Disabled
@@ -72,6 +81,7 @@ Secret scanning:         Enabled
 ```
 
 ### Other Day-1 Tasks
+
 - [ ] **1Password** (personal plan, $3/mo) — store all credentials here from day one; never in notes or `.env` files committed to git
 - [ ] **Slack** — set up free workspace; create `#deploys` and `#alerts` channels for CI/CD notifications
 - [ ] **Linear** — free tier; create a project, seed Phase 0 epics
@@ -105,18 +115,18 @@ S3 is the one AWS service you use from day one — there's no good substitute fo
 
 ---
 
-### Stage 1: Solo Build — ~$20–50/mo *(Start here)*
+### Stage 1: Solo Build — ~$20–50/mo _(Start here)_
 
-| Service | What it does | Cost |
-|---|---|---|
-| **Vercel** | Hosts your entire Next.js app — frontend pages + API Route Handlers; auto-deploys on push; global CDN; preview URLs per PR | Free (Hobby) → $20/mo (Pro, required once you charge users) |
-| **Neon** | Serverless PostgreSQL; scales to zero when idle; works over HTTPS from Vercel serverless | Free (0.5GB) |
-| **Upstash** | Serverless Redis over HTTPS — compatible with Vercel serverless (no VPC needed) | Free (10k cmds/day) |
-| **AWS S3** | Document file storage — the one AWS service you need immediately | ~$1–3/mo |
-| **Auth0** | User authentication + MFA | Free (7,500 MAU) |
-| **Resend** | Transactional email (expiry alerts, invites) | Free (3,000/mo) |
-| **Sentry** | Error tracking | Free tier |
-| **GitHub Actions** | CI — runs tests on every push | Free (2,000 min/mo) |
+| Service            | What it does                                                                                                               | Cost                                                        |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| **Vercel**         | Hosts your entire Next.js app — frontend pages + API Route Handlers; auto-deploys on push; global CDN; preview URLs per PR | Free (Hobby) → $20/mo (Pro, required once you charge users) |
+| **Neon**           | Serverless PostgreSQL; scales to zero when idle; works over HTTPS from Vercel serverless                                   | Free (0.5GB)                                                |
+| **Upstash**        | Serverless Redis over HTTPS — compatible with Vercel serverless (no VPC needed)                                            | Free (10k cmds/day)                                         |
+| **AWS S3**         | Document file storage — the one AWS service you need immediately                                                           | ~$1–3/mo                                                    |
+| **Auth0**          | User authentication + MFA                                                                                                  | Free (7,500 MAU)                                            |
+| **Resend**         | Transactional email (expiry alerts, invites)                                                                               | Free (3,000/mo)                                             |
+| **Sentry**         | Error tracking                                                                                                             | Free tier                                                   |
+| **GitHub Actions** | CI — runs tests on every push                                                                                              | Free (2,000 min/mo)                                         |
 
 **Total: ~$5–25/month** (just S3 + small Neon overages until you upgrade to Vercel Pro)
 
@@ -134,6 +144,7 @@ S3 is the one AWS service you use from day one — there's no good substitute fo
    - Encryption: SSE-S3 for now (upgrade to SSE-KMS in Stage 2 for HIPAA)
    - Versioning: ✅ on (protects against accidental deletes)
 4. **Bucket policy** — allow only your IAM user, deny non-HTTPS:
+
 ```json
 {
   "Version": "2012-10-17",
@@ -151,33 +162,39 @@ S3 is the one AWS service you use from day one — there's no good substitute fo
 ```
 
 #### Setting up Neon (database)
+
 1. Sign up at neon.tech → create project → copy connection string
 2. Add to your `.env`: `DATABASE_URL="postgresql://..."`
 3. Run `pnpm prisma migrate deploy` — your schema is live
 4. The free tier suspends the DB after 5 minutes of inactivity (fine for dev; upgrade to paid ~$19/mo for production)
 
 #### Setting up Upstash (Redis)
+
 1. Sign up at upstash.com → create Redis database → US region
 2. Copy `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` to your `.env`
 3. Free tier: 10,000 commands/day — covers development and early users easily
 
 #### Setting up Vercel (frontend + API)
+
 1. Sign up at vercel.com → Add New Project → import your GitHub repo
 2. Vercel detects Next.js automatically; set the root directory to `apps/web`
 3. Add all environment variables in the Vercel dashboard (DATABASE_URL, UPSTASH keys, Auth0 keys, AWS keys, ANTHROPIC_API_KEY, RESEND_API_KEY)
 4. Every push to `main` deploys automatically; every PR gets a live preview URL with its own environment
 5. Add Cron Jobs in `apps/web/vercel.json`:
+
 ```json
 {
   "crons": [
     { "path": "/api/jobs/expiry-alerts", "schedule": "0 9 * * *" },
-    { "path": "/api/jobs/ai-nudges",     "schedule": "0 8 * * 1" }
+    { "path": "/api/jobs/ai-nudges", "schedule": "0 8 * * 1" }
   ]
 }
 ```
+
 6. Add `CRON_SECRET` env var in Vercel dashboard; verify it in each job Route Handler to prevent unauthorized calls
 
 #### CI pipeline (Stage 1)
+
 ```yaml
 # .github/workflows/ci.yml
 name: CI
@@ -200,6 +217,7 @@ jobs:
 ```
 
 **Stage 1 tasks:**
+
 - [ ] AWS account created; root MFA enabled
 - [ ] IAM user `hearth-app` created; access keys in 1Password
 - [ ] S3 bucket created with versioning, block public access, SSE-S3
@@ -213,29 +231,31 @@ jobs:
 
 ---
 
-### Stage 2: Early Traction — ~$80–150/mo *(trigger: approaching free tier limits, or first revenue)*
+### Stage 2: Early Traction — ~$80–150/mo _(trigger: approaching free tier limits, or first revenue)_
 
 With full-stack Next.js on Vercel, Stage 2 is mostly about upgrading to paid tiers and adding compliance controls — not migrating hosting providers. Vercel stays as your host throughout.
 
-| What changes | From | To | Cost | Why |
-|---|---|---|---|---|
-| **Vercel plan** | Hobby (free) | Pro ($20/mo) | $20/mo | Required for commercial use; unlocks 60s function timeout |
-| **Neon plan** | Free (0.5GB, suspends) | Launch ($19/mo) | $19/mo | No suspension; 10GB storage; needed before onboarding real users |
-| **Upstash plan** | Free (10k cmds/day) | Pay-as-you-go | ~$5–15/mo | Free tier exhausted at ~500 active users |
-| **Email** | Resend free | AWS SES | ~$1–5/mo | HIPAA BAA available; cheaper at volume |
-| **WAF** | None | Vercel Firewall (Pro feature) | Included in Pro | Block SQLi, XSS, known bad IPs — one toggle in Vercel dashboard |
-| **S3 encryption** | SSE-S3 | SSE-KMS (customer-managed key) | ~$1/mo | Required for HIPAA audit trail on key access |
-| **AWS BAA** | Not signed | Signed | Free | Must be signed before storing any real PHI — do this in AWS Account Settings → AWS Artifact |
-| **Auth0 BAA** | Not signed | Signed (requires Enterprise plan) | ~$800+/mo | Required for HIPAA if Auth0 stores PHI; see Open Questions |
-| **Custom domain** | vercel.app URL | hearth.app | ~$15/yr | Route 53 or any registrar → CNAME to Vercel |
+| What changes      | From                   | To                                | Cost            | Why                                                                                         |
+| ----------------- | ---------------------- | --------------------------------- | --------------- | ------------------------------------------------------------------------------------------- |
+| **Vercel plan**   | Hobby (free)           | Pro ($20/mo)                      | $20/mo          | Required for commercial use; unlocks 60s function timeout                                   |
+| **Neon plan**     | Free (0.5GB, suspends) | Launch ($19/mo)                   | $19/mo          | No suspension; 10GB storage; needed before onboarding real users                            |
+| **Upstash plan**  | Free (10k cmds/day)    | Pay-as-you-go                     | ~$5–15/mo       | Free tier exhausted at ~500 active users                                                    |
+| **Email**         | Resend free            | AWS SES                           | ~$1–5/mo        | HIPAA BAA available; cheaper at volume                                                      |
+| **WAF**           | None                   | Vercel Firewall (Pro feature)     | Included in Pro | Block SQLi, XSS, known bad IPs — one toggle in Vercel dashboard                             |
+| **S3 encryption** | SSE-S3                 | SSE-KMS (customer-managed key)    | ~$1/mo          | Required for HIPAA audit trail on key access                                                |
+| **AWS BAA**       | Not signed             | Signed                            | Free            | Must be signed before storing any real PHI — do this in AWS Account Settings → AWS Artifact |
+| **Auth0 BAA**     | Not signed             | Signed (requires Enterprise plan) | ~$800+/mo       | Required for HIPAA if Auth0 stores PHI; see Open Questions                                  |
+| **Custom domain** | vercel.app URL         | hearth.app                        | ~$15/yr         | Route 53 or any registrar → CNAME to Vercel                                                 |
 
 **What does NOT change:**
+
 - Vercel still hosts everything (no migration to App Runner or ECS)
 - Neon is still your database (serverless Postgres, works great with Vercel long-term)
 - Upstash is still your Redis (HTTPS-accessible from serverless — no VPC needed)
 - Application code is identical — only configs and env vars change
 
 **Stage 2 migration order:**
+
 1. Upgrade Vercel to Pro; enable Vercel Firewall in dashboard
 2. Upgrade Neon to Launch plan → verify no more suspension
 3. Upgrade Upstash to pay-as-you-go
@@ -245,6 +265,7 @@ With full-stack Next.js on Vercel, Stage 2 is mostly about upgrading to paid tie
 7. Migrate from Resend to AWS SES → verify domain in SES → update `RESEND_API_KEY` → `SES_FROM_ADDRESS`
 
 **Stage 2 tasks:**
+
 - [ ] Vercel Pro activated; Vercel Firewall enabled with OWASP managed rules
 - [ ] Neon Launch plan; DB no longer suspends
 - [ ] Upstash on pay-as-you-go; rate limits re-verified
@@ -256,22 +277,23 @@ With full-stack Next.js on Vercel, Stage 2 is mostly about upgrading to paid tie
 
 ---
 
-### Stage 3: Team Scale — $500+/mo *(migrate when hiring engineers)*
+### Stage 3: Team Scale — $500+/mo _(migrate when hiring engineers)_
 
 This is the full setup from the original plan. Add it when you have a team that needs it.
 
-| Addition | Why it's needed then and not now |
-|---|---|
-| **Dedicated backend** (`apps/api` with Fastify/Hono) | Mobile app needs a proper API; WebSockets needed; backend engineer joined; or hitting 60s Vercel limit on specific operations |
-| **AWS App Runner / ECS Fargate** | Container hosting for the extracted backend; more control than Vercel for long-running processes |
-| **AWS VPC + RDS + ElastiCache** | Now that your backend lives inside AWS, DB and Redis can live in the same private network — lower latency, no public internet exposure |
-| **Multi-account AWS org** (dev/staging/prod) | Team of engineers; blast radius isolation; compliance; no one accidentally touches prod |
-| **Terraform + Terragrunt IaC** | Team needs reproducible, code-reviewed infrastructure changes |
-| **Aurora Serverless v2** (replacing RDS) | Auto-scales read capacity for traffic spikes |
-| **ArgoCD** (GitOps deploys) | Multiple engineers deploying simultaneously; rollback; audit trail |
-| **Datadog** | APM, distributed tracing — worth the cost with a team that needs observability |
+| Addition                                             | Why it's needed then and not now                                                                                                       |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **Dedicated backend** (`apps/api` with Fastify/Hono) | Mobile app needs a proper API; WebSockets needed; backend engineer joined; or hitting 60s Vercel limit on specific operations          |
+| **AWS App Runner / ECS Fargate**                     | Container hosting for the extracted backend; more control than Vercel for long-running processes                                       |
+| **AWS VPC + RDS + ElastiCache**                      | Now that your backend lives inside AWS, DB and Redis can live in the same private network — lower latency, no public internet exposure |
+| **Multi-account AWS org** (dev/staging/prod)         | Team of engineers; blast radius isolation; compliance; no one accidentally touches prod                                                |
+| **Terraform + Terragrunt IaC**                       | Team needs reproducible, code-reviewed infrastructure changes                                                                          |
+| **Aurora Serverless v2** (replacing RDS)             | Auto-scales read capacity for traffic spikes                                                                                           |
+| **ArgoCD** (GitOps deploys)                          | Multiple engineers deploying simultaneously; rollback; audit trail                                                                     |
+| **Datadog**                                          | APM, distributed tracing — worth the cost with a team that needs observability                                                         |
 
 The Stage 3 Terraform module structure to build toward:
+
 ```
 infra/
 ├── modules/
@@ -294,7 +316,7 @@ infra/
 
 ---
 
-## Milestone 0.3 — Auth & Identity Foundation *(Week 1–2)*
+## Milestone 0.3 — Auth & Identity Foundation _(Week 1–2)_
 
 Auth0 is used from day one across all stages — it doesn't change, only the number of tenants grows.
 
@@ -317,36 +339,54 @@ For solo development, one Auth0 tenant handles both local dev and production. Se
 
 ```typescript
 // Roles (set as Auth0 custom claims in JWT via an Auth0 Action)
-type Role = 'ADMIN' | 'COORDINATOR' | 'VIEWER' | 'CARE_RECIPIENT'
+type Role = "ADMIN" | "COORDINATOR" | "VIEWER" | "CARE_RECIPIENT";
 
 const permissions = {
-  ADMIN:          ['vault:read', 'vault:write', 'vault:delete', 'vault:share',
-                   'health:read', 'health:write', 'workspace:admin', 'ai:query'],
-  COORDINATOR:    ['vault:read', 'vault:write', 'health:read', 'health:write',
-                   'workspace:read', 'workspace:write', 'ai:query'],
-  VIEWER:         ['vault:read', 'health:read', 'workspace:read', 'ai:query'],
-  CARE_RECIPIENT: ['vault:read', 'health:read', 'plan:write', 'ai:query'],
-}
+  ADMIN: [
+    "vault:read",
+    "vault:write",
+    "vault:delete",
+    "vault:share",
+    "health:read",
+    "health:write",
+    "workspace:admin",
+    "ai:query",
+  ],
+  COORDINATOR: [
+    "vault:read",
+    "vault:write",
+    "health:read",
+    "health:write",
+    "workspace:read",
+    "workspace:write",
+    "ai:query",
+  ],
+  VIEWER: ["vault:read", "health:read", "workspace:read", "ai:query"],
+  CARE_RECIPIENT: ["vault:read", "health:read", "plan:write", "ai:query"],
+};
 ```
 
 Create an **Auth0 Action** (post-login trigger) to inject the user's role into the JWT:
+
 ```javascript
 // Auth0 Action: "Add role to token"
 exports.onExecutePostLogin = async (event, api) => {
-  const namespace = 'https://hearth.app'
-  const role = event.user.app_metadata?.role ?? 'COORDINATOR'
-  api.accessToken.setCustomClaim(`${namespace}/role`, role)
-  api.idToken.setCustomClaim(`${namespace}/role`, role)
-}
+  const namespace = "https://hearth.app";
+  const role = event.user.app_metadata?.role ?? "COORDINATOR";
+  api.accessToken.setCustomClaim(`${namespace}/role`, role);
+  api.idToken.setCustomClaim(`${namespace}/role`, role);
+};
 ```
 
 ### Session management
+
 - Access token TTL: **15 minutes** (short for HIPAA)
 - Refresh token: **30 days**, rotation on each use
 - Refresh tokens stored in httpOnly cookies (not localStorage — never accessible to JavaScript)
 - Logout: revoke refresh token at Auth0 + clear cookie
 
 ### Route Handler auth utility
+
 ```typescript
 // apps/web/src/lib/auth.ts
 // Called at the top of every Route Handler that requires authentication:
@@ -361,9 +401,11 @@ exports.onExecutePostLogin = async (event, api) => {
 ```
 
 ### Stage 2: Add separate tenants
+
 When you have multiple environments and engineers, create `hearth-dev` and `hearth-staging` tenants alongside the existing production tenant. Update CI/CD to inject the correct `AUTH0_DOMAIN` per environment.
 
 ### Key Tasks
+
 - [ ] Auth0 tenant created; SPA application configured
 - [ ] API identifier created; JWT audience set
 - [ ] MFA enabled and set to Always
@@ -377,18 +419,19 @@ When you have multiple environments and engineers, create `hearth-dev` and `hear
 
 ---
 
-## Milestone 0.4 — Design System *(Weeks 1–3)*
+## Milestone 0.4 — Design System _(Weeks 1–3)_
 
 This milestone is the same regardless of team size — it's all local code work.
 
 ### Tool choices
-| Layer | Choice | Rationale |
-|---|---|---|
-| Component base | **shadcn/ui** | Radix UI primitives + Tailwind — accessible, fully owned, not a package dependency |
-| Styling | **Tailwind CSS** | Utility-first; design tokens in config; no CSS files to maintain |
-| Icons | **Lucide React** | Consistent, tree-shakeable |
-| Typography | **Inter** (via `next/font`) | Readable at aging-friendly sizes; zero layout shift |
-| Storybook | **Storybook 7** | Component docs + visual testing — Chromatic free tier for solo devs |
+
+| Layer          | Choice                      | Rationale                                                                          |
+| -------------- | --------------------------- | ---------------------------------------------------------------------------------- |
+| Component base | **shadcn/ui**               | Radix UI primitives + Tailwind — accessible, fully owned, not a package dependency |
+| Styling        | **Tailwind CSS**            | Utility-first; design tokens in config; no CSS files to maintain                   |
+| Icons          | **Lucide React**            | Consistent, tree-shakeable                                                         |
+| Typography     | **Inter** (via `next/font`) | Readable at aging-friendly sizes; zero layout shift                                |
+| Storybook      | **Storybook 7**             | Component docs + visual testing — Chromatic free tier for solo devs                |
 
 ### Design token system
 
@@ -398,28 +441,34 @@ export default {
   theme: {
     extend: {
       colors: {
-        sage:   { 50: '#f4f7f4', 100: '#e3ebe3', 500: '#5a7a5a', 700: '#3d5c3d', 900: '#1e2e1e' },
-        cream:  '#f5f0e8',   // page background
-        walnut: '#6b3a2a',   // dark red CTA (Emergency share button)
+        sage: {
+          50: "#f4f7f4",
+          100: "#e3ebe3",
+          500: "#5a7a5a",
+          700: "#3d5c3d",
+          900: "#1e2e1e",
+        },
+        cream: "#f5f0e8", // page background
+        walnut: "#6b3a2a", // dark red CTA (Emergency share button)
         alert: {
-          warning: '#f59e0b',
-          error:   '#ef4444',
-          info:    '#3b82f6',
-          success: '#22c55e',
+          warning: "#f59e0b",
+          error: "#ef4444",
+          info: "#3b82f6",
+          success: "#22c55e",
         },
       },
       fontSize: {
         // Aging-friendly: 18px default body, generous line heights
-        'body':    ['1rem',     { lineHeight: '1.625' }],
-        'body-lg': ['1.125rem', { lineHeight: '1.75' }],  // default for body copy
-        'label':   ['0.875rem', { lineHeight: '1.5' }],
-        'h1':      ['1.875rem', { lineHeight: '1.25' }],
-        'h2':      ['1.5rem',   { lineHeight: '1.3' }],
-        'h3':      ['1.25rem',  { lineHeight: '1.4' }],
+        body: ["1rem", { lineHeight: "1.625" }],
+        "body-lg": ["1.125rem", { lineHeight: "1.75" }], // default for body copy
+        label: ["0.875rem", { lineHeight: "1.5" }],
+        h1: ["1.875rem", { lineHeight: "1.25" }],
+        h2: ["1.5rem", { lineHeight: "1.3" }],
+        h3: ["1.25rem", { lineHeight: "1.4" }],
       },
     },
   },
-}
+};
 ```
 
 ### Component inventory (build before Sprint 1)
@@ -445,12 +494,14 @@ apps/web/src/components/
 ```
 
 **Accessibility requirements on every component:**
+
 - All interactive elements have `aria-label` or visible label
 - Focus ring: `ring-2 ring-sage-500 ring-offset-2` (visible on all backgrounds)
 - Color is never the only indicator — always paired with icon or text
 - Touch targets minimum 44×44px
 
 ### Key Tasks
+
 - [ ] `tailwind.config.ts` with full token set (colors, font sizes above)
 - [ ] `pnpm dlx shadcn@latest init` — initialize shadcn/ui in `apps/web`
 - [ ] Add all primitive components listed above via shadcn CLI
@@ -480,6 +531,7 @@ These are non-negotiable even as a solo developer:
 - **Auth0 anomaly detection**: Enable in Auth0 dashboard → Security → Bot Detection + Brute Force Protection (free, one checkbox)
 
 **Stage 1 tasks:**
+
 - [ ] AWS root account MFA enabled
 - [ ] S3 bucket public access blocked; HTTPS-only bucket policy applied
 - [ ] `.env` in `.gitignore`; GitHub secret scanning confirmed active
@@ -496,6 +548,7 @@ These are non-negotiable even as a solo developer:
 - **Vercel env vars remain appropriate**: Vercel encrypts env vars at rest. AWS Secrets Manager becomes relevant in Stage 3 when you have a backend server that can connect to it via IAM.
 
 **Stage 2 tasks:**
+
 - [ ] Vercel Firewall enabled; OWASP managed ruleset active
 - [ ] S3 encryption upgraded to SSE-KMS with customer-managed key
 - [ ] CloudTrail enabled; logs stored in S3 with 7-year retention
@@ -515,23 +568,26 @@ These are non-negotiable even as a solo developer:
 
 ---
 
-## Milestone 0.6 — Legal & Compliance *(Months 1–2)*
+## Milestone 0.6 — Legal & Compliance _(Months 1–2)_
 
 This is primarily a legal workstream. Most of it doesn't scale with team size — the same work is needed whether you're solo or not.
 
 **Documents to produce (with legal counsel):**
+
 - [ ] Privacy Policy — include HIPAA Notice of Privacy Practices + CCPA disclosures
 - [ ] Terms of Service
 - [ ] Cookie consent banner — minimal cookies for MVP (auth session + analytics only)
 - [ ] User consent to PHI processing — displayed at signup; you must store the timestamp
 
 **Engineering tasks (required before accepting real users):**
+
 - [ ] Consent capture at signup: store `{ userId, consentVersion, consentedAt, ipAddress }` in DB
 - [ ] Cookie consent banner component — blocks analytics until accepted; choice persisted in localStorage
 - [ ] Data deletion endpoint: `DELETE /api/users/me` — CCPA right-to-erasure; hard delete PII, soft delete audit logs
 - [ ] Data export endpoint: `GET /api/users/me/export` — CCPA right-to-know; returns JSON of all user data
 
 **Start now even though it's Phase 2:**
+
 - [ ] **10DLC SMS brand registration** (Twilio) — carrier approval takes 4–8 weeks and you can't control the timeline. Submit in Month 1 even if SMS is a Phase 2 feature, or you'll be blocked when you get there.
 
 **BAA note:** The AWS BAA (covered in 0.5) is what makes AWS HIPAA-eligible. You also need a BAA with Auth0 — this requires Auth0's **Enterprise plan** (~$800+/mo). For Stage 1 pre-PHI development, their standard plan is fine. Get the Auth0 BAA before you onboard real patients' data.
@@ -540,7 +596,7 @@ This is primarily a legal workstream. Most of it doesn't scale with team size �
 
 ---
 
-## Milestone 0.7 — Data Architecture *(Months 2–3)*
+## Milestone 0.7 — Data Architecture _(Months 2–3)_
 
 ### Design principles (all stages)
 
@@ -553,6 +609,7 @@ This is primarily a legal workstream. Most of it doesn't scale with team size �
 **Stage 1:** Rely on S3 SSE-S3 for documents and Neon's built-in encryption at rest for database. This is adequate for development and testing. No PHI from real users yet.
 
 **Stage 2:** Before accepting real PHI:
+
 - Upgrade S3 to SSE-KMS (covered in 0.5)
 - Add application-layer encryption for sensitive PII fields using AWS KMS + AES-256-GCM:
 
@@ -563,8 +620,8 @@ This is primarily a legal workstream. Most of it doesn't scale with team size �
 // stores both the encrypted data key + ciphertext.
 // Data key cached in memory (5 min TTL) to reduce KMS API calls.
 
-export async function encryptPii(plaintext: string): Promise<string>
-export async function decryptPii(ciphertext: string): Promise<string>
+export async function encryptPii(plaintext: string): Promise<string>;
+export async function decryptPii(ciphertext: string): Promise<string>;
 
 // Fields to encrypt before writing to DB:
 // CareRecipient.dateOfBirth
@@ -592,6 +649,7 @@ model AuditLog {
 ```
 
 Audit log is **insert-only** — never update or delete entries. Events to log:
+
 - `document.upload`, `document.view`, `document.download`, `document.delete`, `document.share`
 - `medication.add`, `medication.update`, `medication.delete`
 - `user.login`, `user.logout`, `user.invite`
@@ -605,12 +663,14 @@ Audit log is **insert-only** — never update or delete entries. Events to log:
 **Stage 2 (RDS):** RDS doesn't have built-in pooling. Add **PgBouncer** as a sidecar container in App Runner, or use **RDS Proxy** (managed by AWS, ~$15/mo extra, zero ops). For a solo developer, RDS Proxy is worth the cost.
 
 ### Migration strategy
+
 - Prisma Migrate for all schema changes; migration files committed to git
 - Run `prisma migrate deploy` as part of the CI/CD pipeline before the app starts — never run migrations manually
 - Only backward-compatible migrations: add nullable columns, never drop columns in the same deploy as code removal
 - Keep a staging database snapshot for testing migrations before they hit prod
 
 ### Key Tasks
+
 - [ ] Prisma schema v1 finalized: all models from MVP plan + `AuditLog` + FHIR partition columns
 - [ ] Prisma middleware for soft deletes: filter `deletedAt: null` on all queries automatically
 - [ ] Prisma middleware for audit log: auto-insert on document, medication, shareLink mutations
@@ -633,51 +693,55 @@ Audit log is **insert-only** — never update or delete entries. Events to log:
 ### Testing Framework Setup
 
 > **Solo dev note:** Don't set all of this up on day one. The table below shows the full eventual picture, but install in tiers:
+>
 > - **Day one (Phase 0):** Vitest + React Testing Library — 15 minutes, gives you the test runner foundation.
 > - **Before beta launch:** Playwright — write 5–10 tests covering login, upload, and your key flows.
 > - **When it's annoying not to have it:** MSW (once DB round-trips slow down component tests), Lighthouse CI (once performance matters), axe-playwright (two extra lines in an existing Playwright test — worth adding early if accessibility is a priority).
 > - **When you have a second engineer:** Chromatic — visual regression isn't worth the overhead solo; you'll see broken UI when you look at the screen.
 
-| Tool | Purpose | Install |
-|------|---------|---------|
-| Vitest | Unit + integration tests (Route Handlers, utilities, Prisma helpers) | `pnpm add -D vitest @vitejs/plugin-react` |
-| React Testing Library | Component unit tests | `pnpm add -D @testing-library/react @testing-library/user-event` |
-| Playwright | E2E browser tests | `pnpm add -D @playwright/test` |
-| axe-playwright | Accessibility (WCAG 2.1 AA scans inside Playwright tests) | `pnpm add -D @axe-core/playwright` |
-| Lighthouse CI | Performance budgets in CI (LCP, CLS, TBT) | `pnpm add -D @lhci/cli` |
-| Chromatic | Visual regression via Storybook snapshots — add when second engineer joins | Free tier via `chromatic` CLI |
-| MSW | Mock Route Handlers in component tests without hitting real DB | `pnpm add -D msw` |
+| Tool                  | Purpose                                                                    | Install                                                          |
+| --------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Vitest                | Unit + integration tests (Route Handlers, utilities, Prisma helpers)       | `pnpm add -D vitest @vitejs/plugin-react`                        |
+| React Testing Library | Component unit tests                                                       | `pnpm add -D @testing-library/react @testing-library/user-event` |
+| Playwright            | E2E browser tests                                                          | `pnpm add -D @playwright/test`                                   |
+| axe-playwright        | Accessibility (WCAG 2.1 AA scans inside Playwright tests)                  | `pnpm add -D @axe-core/playwright`                               |
+| Lighthouse CI         | Performance budgets in CI (LCP, CLS, TBT)                                  | `pnpm add -D @lhci/cli`                                          |
+| Chromatic             | Visual regression via Storybook snapshots — add when second engineer joins | Free tier via `chromatic` CLI                                    |
+| MSW                   | Mock Route Handlers in component tests without hitting real DB             | `pnpm add -D msw`                                                |
 
 **Vitest config (`vitest.config.ts` at monorepo root):**
+
 ```typescript
-import { defineConfig } from 'vitest/config'
+import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
-    environment: 'node',
-    setupFiles: ['./test/setup.ts'],
-    coverage: { provider: 'v8', reporter: ['text', 'lcov'] },
+    environment: "node",
+    setupFiles: ["./test/setup.ts"],
+    coverage: { provider: "v8", reporter: ["text", "lcov"] },
   },
-})
+});
 ```
 
 **Playwright config (`playwright.config.ts`):**
+
 ```typescript
-import { defineConfig, devices } from '@playwright/test'
+import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
-  testDir: './e2e',
+  testDir: "./e2e",
   use: {
-    baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:3000',
-    screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3000",
+    screenshot: "only-on-failure",
+    video: "retain-on-failure",
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'mobile-safari', use: { ...devices['iPhone 14'] } },
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    { name: "mobile-safari", use: { ...devices["iPhone 14"] } },
   ],
-})
+});
 ```
 
 **Coverage aspirations (not hard gates in Stage 1):**
+
 - Route Handlers: 80% line coverage
 - Prisma query helpers in `packages/db`: 90% line coverage
 - React components: 60% line coverage (rely on Playwright for behavioral coverage)
@@ -688,14 +752,15 @@ export default defineConfig({
 
 Vercel maps three environments to three Git branches. Use Neon's branching for isolated test databases — no shared state between PRs.
 
-| Environment | Vercel Env | Git Branch | Database | Purpose |
-|------------|-----------|-----------|----------|---------|
-| Local | — | any feature branch | Neon `dev` branch | Daily coding |
-| Preview | Preview | any PR | Neon `preview/pr-<n>` branch | PR review + QA |
-| Staging | Preview (named) | `staging` | Neon `staging` branch | Pre-release smoke test |
-| Production | Production | `main` | Neon `main` branch | Real users |
+| Environment | Vercel Env      | Git Branch         | Database                     | Purpose                |
+| ----------- | --------------- | ------------------ | ---------------------------- | ---------------------- |
+| Local       | —               | any feature branch | Neon `dev` branch            | Daily coding           |
+| Preview     | Preview         | any PR             | Neon `preview/pr-<n>` branch | PR review + QA         |
+| Staging     | Preview (named) | `staging`          | Neon `staging` branch        | Pre-release smoke test |
+| Production  | Production      | `main`             | Neon `main` branch           | Real users             |
 
 **Neon branch workflow (automate via GitHub Actions):**
+
 ```bash
 # On PR open: create an isolated DB branch and run migrations
 neon branches create --name preview/pr-42 --parent main
@@ -706,10 +771,12 @@ neon branches delete preview/pr-42
 ```
 
 **Promotion criteria (Stage 1 — solo dev):**
+
 - **Preview → Staging:** Playwright smoke tests pass; no new Sentry errors in last 24 h on the preview deployment
 - **Staging → Production:** Manual review on staging; Lighthouse CI score ≥ 80 on `/` and `/vault`; no open P0/P1 Sentry issues
 
 **GitHub Actions CI (`.github/workflows/ci.yml`):**
+
 ```yaml
 name: CI
 on: [push, pull_request]
@@ -721,10 +788,10 @@ jobs:
       - uses: pnpm/action-setup@v3
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
-      - run: pnpm test:unit            # Vitest
-      - run: pnpm test:e2e             # Playwright against preview URL
-      - run: pnpm lhci autorun         # Lighthouse CI
-      - run: pnpm chromatic            # Visual regression (Storybook)
+      - run: pnpm test:unit # Vitest
+      - run: pnpm test:e2e # Playwright against preview URL
+      - run: pnpm lhci autorun # Lighthouse CI
+      - run: pnpm chromatic # Visual regression (Storybook)
 ```
 
 ---
@@ -733,29 +800,30 @@ jobs:
 
 **Analytics & session replay options:**
 
-| Tool | HIPAA BAA | Cost | Stage |
-|------|-----------|------|-------|
-| PostHog (cloud) | Available | Free < 1M events/mo | Stage 1 from day one |
-| FullStory | Available | ~$199+/mo | Stage 2 — once you have real users and need session replay for support |
-| Mixpanel | No BAA | Free tier | Avoid — no HIPAA path |
+| Tool            | HIPAA BAA | Cost                | Stage                                                                  |
+| --------------- | --------- | ------------------- | ---------------------------------------------------------------------- |
+| PostHog (cloud) | Available | Free < 1M events/mo | Stage 1 from day one                                                   |
+| FullStory       | Available | ~$199+/mo           | Stage 2 — once you have real users and need session replay for support |
+| Mixpanel        | No BAA    | Free tier           | Avoid — no HIPAA path                                                  |
 
 **Stage 1: PostHog setup with PHI masking:**
+
 ```typescript
 // apps/web/src/lib/analytics.ts
-import posthog from 'posthog-js'
+import posthog from "posthog-js";
 
 export function initAnalytics() {
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
-    api_host: '/ingest',              // proxy through your domain (avoids ad blockers)
-    capture_pageview: false,          // manual control — PHI can appear in URLs
-    autocapture: false,               // CRITICAL: disable in a HIPAA app
-    mask_all_text: true,              // mask text content in session replay
+    api_host: "/ingest", // proxy through your domain (avoids ad blockers)
+    capture_pageview: false, // manual control — PHI can appear in URLs
+    autocapture: false, // CRITICAL: disable in a HIPAA app
+    mask_all_text: true, // mask text content in session replay
     mask_all_element_attributes: true,
-  })
+  });
 }
 
 export function track(event: string, properties?: Record<string, unknown>) {
-  posthog.capture(event, properties)
+  posthog.capture(event, properties);
   // Rule: never include names, DOBs, diagnoses, med names, document titles, or anything
   // that identifies a care recipient. Log feature usage patterns only.
 }
@@ -764,11 +832,13 @@ export function track(event: string, properties?: Record<string, unknown>) {
 **PHI masking rule (standing policy):** Never pass names, dates of birth, diagnoses, medication names, document titles, or care recipient identifiers to any third-party analytics tool. Log actions and categories only (e.g., `document_uploaded`, `{ category: 'legal' }` — not the filename).
 
 **Error tracking (Sentry — already planned in Milestone 0.2):**
+
 - Add `@sentry/nextjs` wizard setup
 - Configure source maps upload in `next.config.ts`
 - Set `tracesSampleRate: 0.1` in production
 
 **Baseline events to instrument starting Sprint 1:**
+
 - `user_signed_up`, `user_logged_in`
 - `document_uploaded { category }`, `document_viewed`, `document_downloaded`, `document_deleted`
 - `care_recipient_created`
@@ -779,17 +849,20 @@ export function track(event: string, properties?: Record<string, unknown>) {
 ### Documentation Tooling
 
 **User-facing docs (external product help):**
+
 - **Tool:** Mintlify — free tier, MDX-based, connects to your GitHub repo
 - **Setup:** `/docs` directory in monorepo → GitHub integration auto-deploys to `docs.hearth.app`
 - **Launch content:** Getting Started guide, Family Vault walkthrough, FAQ
 - **Update rule:** Add or update a docs page for every user-visible feature shipped (include this in sprint Definition of Done)
 
 **API docs:**
+
 - GraphQL: Enable introspection in development; export `schema.graphql` with `graphql-codegen`; host GraphQL Playground at `/api/graphql` in non-production only
 - Future public REST API: Add Scalar or Redoc when you expose integrations (Phase 2+)
 - Commit `schema.graphql` to the repo root and regenerate on every schema change
 
 **Changelog:**
+
 - **Stage 1:** Simple `CHANGELOG.md` following [Keep a Changelog](https://keepachangelog.com) format
 - **Stage 2:** Headway or Beamer (in-app "What's new" widget) — adds ~$29/mo but drives feature discovery
 - Publish a release note for every production deployment that adds user-visible changes
@@ -820,34 +893,40 @@ export function track(event: string, properties?: Record<string, unknown>) {
 Before writing any feature code, confirm all of the following. This is the Stage 1 bar — not the full enterprise setup.
 
 **Infrastructure:**
+
 - [ ] App loads at Vercel URL (or localhost:3000)
 - [ ] `/api/health` Route Handler returns 200 (same deployment — no separate service)
 - [ ] S3 bucket exists; can upload and download a test file via presigned URL from a Route Handler
 - [ ] Neon database accessible; Prisma migrations applied
 
 **Auth:**
+
 - [ ] Can log in and out via Auth0
 - [ ] MFA prompt appears on login
 - [ ] API rejects requests without a valid JWT (returns 401)
 - [ ] Test user exists with ADMIN role
 
 **Design:**
+
 - [ ] `tailwind.config.ts` has brand color tokens (sage, cream, walnut)
 - [ ] shadcn/ui initialized; Button, Card, Badge, Input working
 - [ ] Sidebar shell renders; can navigate between placeholder module pages
 
 **Security:**
+
 - [ ] `.env` gitignored; no secrets in any committed file
 - [ ] GitHub secret scanning active
 - [ ] AWS root account has MFA
 - [ ] S3 bucket: public access blocked, HTTPS-only
 
 **Data:**
+
 - [ ] `pnpm db:seed` populates realistic test data
 - [ ] Audit log writes on every document mutation (verify in DB)
 - [ ] Soft delete filter active (deleted records don't appear in queries)
 
 **Compliance:**
+
 - [ ] Privacy policy and ToS drafted (can be in review)
 - [ ] Consent model exists in Prisma schema
 - [ ] 10DLC SMS registration submitted
