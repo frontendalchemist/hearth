@@ -1,39 +1,81 @@
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 47 60% 97%;       /* cream-50 */
-    --foreground: 210 20% 15%;      /* near-black */
-    --card: 0 0% 100%;
-    --card-foreground: 210 20% 15%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 210 20% 15%;
-    --primary: 130 18% 42%;         /* sage-600 */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 44 70% 88%;        /* cream-200 */
-    --secondary-foreground: 210 20% 15%;
-    --muted: 130 10% 94%;
-    --muted-foreground: 210 10% 45%;
-    --accent: 28 32% 60%;           /* walnut-400 */
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 130 10% 88%;
-    --input: 130 10% 88%;
-    --ring: 130 18% 42%;
-    --radius: 0.5rem;
+    /* Hearth brand palette */
+    --background: oklch(0.99 0.008 95);        /* cream-50 */
+    --foreground: oklch(0.22 0.015 200);        /* near-black, cool tone */
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.22 0.015 200);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.22 0.015 200);
+    --primary: oklch(0.46 0.07 155);            /* sage-600 */
+    --primary-foreground: oklch(0.99 0 0);
+    --secondary: oklch(0.95 0.025 95);          /* cream-200 */
+    --secondary-foreground: oklch(0.22 0.015 200);
+    --muted: oklch(0.95 0.012 155);             /* sage-50 */
+    --muted-foreground: oklch(0.52 0.03 155);
+    --accent: oklch(0.65 0.07 55);              /* walnut-400 */
+    --accent-foreground: oklch(0.99 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.88 0.02 155);
+    --input: oklch(0.88 0.02 155);
+    --ring: oklch(0.46 0.07 155);
+    --radius: 0.625rem;
+    --sidebar: oklch(1 0 0);
+    --sidebar-foreground: oklch(0.22 0.015 200);
+    --sidebar-primary: oklch(0.46 0.07 155);
+    --sidebar-primary-foreground: oklch(0.99 0 0);
+    --sidebar-accent: oklch(0.95 0.012 155);
+    --sidebar-accent-foreground: oklch(0.38 0.05 155);
+    --sidebar-border: oklch(0.88 0.02 155);
+    --sidebar-ring: oklch(0.46 0.07 155);
   }
-}
 
-@layer base {
-  * {
-    @apply border-border;
+  .dark {
+    --background: oklch(0.22 0.015 200);
+    --foreground: oklch(0.97 0 0);
+    --card: oklch(0.27 0.015 200);
+    --card-foreground: oklch(0.97 0 0);
+    --popover: oklch(0.27 0.015 200);
+    --popover-foreground: oklch(0.97 0 0);
+    --primary: oklch(0.6 0.07 155);
+    --primary-foreground: oklch(0.22 0.015 200);
+    --secondary: oklch(0.3 0.015 200);
+    --secondary-foreground: oklch(0.97 0 0);
+    --muted: oklch(0.3 0.015 200);
+    --muted-foreground: oklch(0.65 0.03 155);
+    --accent: oklch(0.55 0.07 55);
+    --accent-foreground: oklch(0.97 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.6 0.07 155);
+    --sidebar: oklch(0.27 0.015 200);
+    --sidebar-foreground: oklch(0.97 0 0);
+    --sidebar-primary: oklch(0.6 0.07 155);
+    --sidebar-primary-foreground: oklch(0.97 0 0);
+    --sidebar-accent: oklch(0.3 0.015 200);
+    --sidebar-accent-foreground: oklch(0.97 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.6 0.07 155);
   }
+
+  * {
+    @apply border-border outline-ring/50;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-size: 18px;
     line-height: 1.7;
+  }
+
+  html {
+    @apply font-sans;
   }
 }

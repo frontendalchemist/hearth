@@ -1,5 +1,5 @@
-import { getSession } from '@auth0/nextjs-auth0'
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import { auth0 } from './auth0'
 
 export type AuthUser = {
   sub: string
@@ -11,12 +11,9 @@ export type AuthUser = {
 /**
  * Call at the top of every Route Handler that requires authentication.
  * Returns the authenticated user or throws a 401 response.
- *
- * Usage:
- *   const user = await requireAuth(req)
  */
-export async function requireAuth(req: NextRequest): Promise<AuthUser> {
-  const session = await getSession()
+export async function requireAuth(): Promise<AuthUser> {
+  const session = await auth0.getSession()
 
   if (!session?.user) {
     throw NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

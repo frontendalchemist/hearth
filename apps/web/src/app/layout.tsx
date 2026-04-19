@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import { Inter, Lora } from 'next/font/google'
-import { UserProvider } from '@auth0/nextjs-auth0/client'
 import { PostHogProvider } from '@/components/providers/posthog-provider'
 import './globals.css'
 
@@ -27,9 +26,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${lora.variable}`}>
       <body>
-        <UserProvider>
-          <PostHogProvider>{children}</PostHogProvider>
-        </UserProvider>
+        <PostHogProvider>{children}</PostHogProvider>
       </body>
     </html>
   )
