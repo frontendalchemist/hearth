@@ -1,6 +1,5 @@
-import type { NextConfig } from 'next'
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   experimental: {
     typedRoutes: true,
   },
@@ -16,7 +15,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // Proxy PostHog through our domain to avoid ad blockers
   async rewrites() {
     return [
       {

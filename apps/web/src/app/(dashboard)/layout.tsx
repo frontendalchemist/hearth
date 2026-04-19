@@ -1,5 +1,5 @@
-import { getSession } from '@auth0/nextjs-auth0'
 import { redirect } from 'next/navigation'
+import { auth0 } from '@/lib/auth0'
 import { SidebarNav } from '@/components/layout/sidebar-nav'
 
 export default async function DashboardLayout({
@@ -7,10 +7,10 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const session = await getSession()
+  const session = await auth0.getSession()
 
   if (!session) {
-    redirect('/login')
+    redirect('/auth/login')
   }
 
   return (

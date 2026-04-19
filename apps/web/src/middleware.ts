@@ -1,15 +1,12 @@
-import { withMiddlewareAuthRequired } from '@auth0/nextjs-auth0/edge'
+import { auth0 } from './lib/auth0'
+import type { NextRequest } from 'next/server'
 
-// Protect all dashboard routes — redirect to /login if not authenticated.
-// Auth0 SDK handles the redirect automatically.
-export default withMiddlewareAuthRequired()
+export async function middleware(request: NextRequest) {
+  return await auth0.middleware(request)
+}
 
 export const config = {
   matcher: [
-    '/vault/:path*',
-    '/health-hub/:path*',
-    '/ai-assistant/:path*',
-    '/stage-navigator/:path*',
-    '/workspace/:path*',
+    '/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)',
   ],
 }

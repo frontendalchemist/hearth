@@ -4,7 +4,9 @@
       "Bash(python3 -c ' *)",
       "Bash(grep -E \"\\\\.docx$\")",
       "Bash(python3)",
-      "Bash(python3 -m pip install python-docx -q)"
+      "Bash(python3 -m pip install python-docx -q)",
+      "Bash(rm /Users/whitneysmith/Documents/aging_gracefully_mvp/apps/web/src/app/api/auth/[auth0]/route.ts)",
+      "Bash(rmdir /Users/whitneysmith/Documents/aging_gracefully_mvp/apps/web/src/app/api/auth/[auth0])"
     ]
   }
 }

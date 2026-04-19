@@ -46,7 +46,7 @@ export function SidebarNav() {
       </nav>
       <div className="border-t border-border pt-4 mt-4">
         <Link
-          href="/api/auth/logout"
+          href="/auth/logout"
           className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-sage-50 hover:text-sage-700 transition-colors"
         >
           Sign out
