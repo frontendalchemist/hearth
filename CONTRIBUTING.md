@@ -1,0 +1,74 @@
+# Contributing
+
+## Local setup
+
+```bash
+# Prerequisites: Node 20+, pnpm 9+
+
+# 1. Install dependencies
+pnpm install
+
+# 2. Copy env template
+cp .env.example apps/web/.env.local
+# Fill in values — at minimum DATABASE_URL and AUTH0_* to run locally
+
+# 3. Generate Prisma client
+pnpm db:generate
+
+# 4. Apply migrations and seed
+pnpm db:migrate
+pnpm db:seed
+
+# 5. Start the dev server
+pnpm dev
+# → http://localhost:3000
+```
+
+## Environment pipeline
+
+| Branch | Vercel env | Neon DB branch |
+|--------|-----------|---------------|
+| feature/* | Preview | dev |
+| PR open | Preview | preview/pr-\<n\> (auto-created) |
+| staging | Preview (named) | staging |
+| main | Production | main |
+
+**Creating a preview DB branch manually:**
+```bash
+neon branches create --name preview/pr-42 --parent main
+DATABASE_URL=$(neon connection-string preview/pr-42) pnpm db:migrate deploy
+```
+
+**Deleting a preview branch:**
+```bash
+neon branches delete preview/pr-42
+```
+
+## Running tests
+
+```bash
+pnpm test:unit          # Vitest (fast, no browser)
+pnpm test:e2e           # Playwright (requires a running dev server or preview URL)
+```
+
+## Adding a shadcn/ui component
+
+```bash
+pnpm --filter @hearth/web dlx shadcn@latest add button
+```
+
+Components are installed to `apps/web/src/components/ui/`.
+
+## Prisma workflow
+
+```bash
+# After editing packages/db/prisma/schema.prisma:
+pnpm db:migrate         # creates a new migration file and applies it
+pnpm db:generate        # regenerates the TypeScript client
+```
+
+## Code style
+
+- TypeScript strict mode throughout — no `any`
+- No comments explaining what code does — only why (non-obvious constraints, workarounds)
+- PHI rule: never pass names, DOBs, diagnoses, or document titles to analytics or logs

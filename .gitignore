@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Next.js
+apps/web/.next/
+apps/web/out/
+
+# Build outputs
+dist/
+.turbo/
+
+# Environment variables — NEVER commit these
+.env
+.env.local
+.env.*.local
+.env.production
+
+# Prisma
+packages/db/prisma/migrations/*.sql.bak
+
+# Testing
+coverage/
+playwright-report/
+test-results/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
