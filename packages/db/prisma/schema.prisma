@@ -1,0 +1,319 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum DocumentCategory {
+  LEGAL
+  MEDICAL
+  FINANCIAL
+  INSURANCE
+  IDENTITY
+  OTHER
+}
+
+enum DocumentStatus {
+  PENDING
+  PROCESSING
+  READY
+  ERROR
+}
+
+enum MedicationFrequency {
+  DAILY
+  TWICE_DAILY
+  THREE_TIMES_DAILY
+  WEEKLY
+  AS_NEEDED
+  OTHER
+}
+
+enum CareStage {
+  STAGE_1_INDEPENDENT
+  STAGE_2_SOME_HELP
+  STAGE_3_ASSISTED_LIVING
+  STAGE_4_MEMORY_CARE
+  STAGE_5_END_OF_LIFE
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum AuditAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  DOWNLOAD
+  SHARE
+}
+
+// ─── Core identity ────────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  auth0Sub  String   @unique
+  email     String   @unique
+  name      String
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships        CareRecipientMembership[]
+  uploadedDocuments  Document[]
+  assignedTasks      Task[]                    @relation("AssignedTo")
+  createdTasks       Task[]                    @relation("CreatedBy")
+  careLogEntries     CareLogEntry[]
+  auditLogs          AuditLog[]
+  aiConversations    AiConversation[]
+  consentRecords     ConsentRecord[]
+}
+
+model CareRecipient {
+  id          String     @id @default(cuid())
+  firstName   String
+  lastName    String
+  dateOfBirth DateTime?
+  photoUrl    String?
+  careStage   CareStage  @default(STAGE_1_INDEPENDENT)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?  // soft delete
+
+  memberships    CareRecipientMembership[]
+  documents      Document[]
+  medications    Medication[]
+  providers      Provider[]
+  screenings     Screening[]
+  tasks          Task[]
+  careLogEntries CareLogEntry[]
+  aiConversations AiConversation[]
+  stageAssessments StageAssessment[]
+}
+
+model CareRecipientMembership {
+  id              String        @id @default(cuid())
+  userId          String
+  careRecipientId String
+  role            Role          @default(MEMBER)
+  createdAt       DateTime      @default(now())
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  careRecipient CareRecipient @relation(fields: [careRecipientId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, careRecipientId])
+}
+
+// ─── Family Vault ─────────────────────────────────────────────────────────────
+
+model Document {
+  id              String           @id @default(cuid())
+  careRecipientId String
+  uploadedById    String
+  filename        String
+  s3Key           String           @unique
+  mimeType        String
+  sizeBytes       Int
+  category        DocumentCategory @default(OTHER)
+  tags            String[]
+  status          DocumentStatus   @default(PENDING)
+  expiresAt       DateTime?
+  notes           String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?        // soft delete
+
+  careRecipient CareRecipient @relation(fields: [careRecipientId], references: [id])
+  uploadedBy    User          @relation(fields: [uploadedById], references: [id])
+  shareLinks    ShareLink[]
+}
+
+model ShareLink {
+  id         String    @id @default(cuid())
+  documentId String
+  token      String    @unique @default(cuid())
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  usedAt     DateTime?
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
+
+// ─── Health Hub ───────────────────────────────────────────────────────────────
+
+model Medication {
+  id              String              @id @default(cuid())
+  careRecipientId String
+  name            String
+  dosage          String
+  frequency       MedicationFrequency
+  prescribedBy    String?
+  startDate       DateTime?
+  endDate         DateTime?
+  refillDate      DateTime?
+  notes           String?
+  isActive        Boolean             @default(true)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  deletedAt       DateTime?
+
+  careRecipient CareRecipient @relation(fields: [careRecipientId], references: [id])
+}
+
+model Provider {
+  id              String    @id @default(cuid())
+  careRecipientId String
+  name            String
+  specialty       String?
+  phone           String?
+  fax             String?
+  address         String?
+  notes           String?
+  isPrimary       Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  careRecipient CareRecipient @relation(fields: [careRecipientId], references: [id])
+}
+
+model Screening {
+  id              String    @id @default(cuid())
+  careRecipientId String
+  name            String
+  lastDate        DateTime?
+  nextDueDate     DateTime?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  careRecipient CareRecipient @relation(fields: [careRecipientId], references: [id])
+}
+
+// ─── AI Assistant ─────────────────────────────────────────────────────────────
+
+model AiConversation {
+  id              String    @id @default(cuid())
+  careRecipientId String
+  userId          String
+  title           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  careRecipient CareRecipient @relation(fields: [careRecipientId], references: [id])
+  user          User          @relation(fields: [userId], references: [id])
+  messages      AiMessage[]
+}
+
+model AiMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String   // 'user' | 'assistant'
+  content        String
+  createdAt      DateTime @default(now())
+
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+// ─── Stage Navigator ──────────────────────────────────────────────────────────
+
+model StageAssessment {
+  id              String    @id @default(cuid())
+  careRecipientId String
+  stage           CareStage
+  assessedAt      DateTime  @default(now())
+  notes           String?
+  responses       Json?     // FHIR-ready: structured questionnaire responses
+
+  careRecipient CareRecipient @relation(fields: [careRecipientId], references: [id])
+}
+
+// ─── Family Workspace ─────────────────────────────────────────────────────────
+
+model Task {
+  id              String       @id @default(cuid())
+  careRecipientId String
+  createdById     String
+  assignedToId    String?
+  title           String
+  description     String?
+  status          TaskStatus   @default(TODO)
+  priority        TaskPriority @default(MEDIUM)
+  dueDate         DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
+
+  careRecipient CareRecipient @relation(fields: [careRecipientId], references: [id])
+  createdBy     User          @relation("CreatedBy", fields: [createdById], references: [id])
+  assignedTo    User?         @relation("AssignedTo", fields: [assignedToId], references: [id])
+}
+
+model CareLogEntry {
+  id              String    @id @default(cuid())
+  careRecipientId String
+  authorId        String
+  content         String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  careRecipient CareRecipient @relation(fields: [careRecipientId], references: [id])
+  author        User          @relation(fields: [authorId], references: [id])
+}
+
+// ─── Compliance ───────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id           String      @id @default(cuid())
+  userId       String?
+  action       AuditAction
+  resourceType String
+  resourceId   String
+  ipAddress    String?
+  userAgent    String?
+  metadata     Json?
+  createdAt    DateTime    @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // Insert-only table — no updates or deletes. Retained 7 years per HIPAA.
+  @@index([userId])
+  @@index([resourceType, resourceId])
+  @@index([createdAt])
+}
+
+model ConsentRecord {
+  id          String   @id @default(cuid())
+  userId      String
+  consentType String   // e.g. 'terms_of_service', 'hipaa_notice', 'marketing'
+  version     String
+  acceptedAt  DateTime @default(now())
+  ipAddress   String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, consentType, version])
+}

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "Hearth",
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#456750",
+    "light": "#7ea182",
+    "dark": "#2e4336"
+  },
+  "topbarLinks": [
+    {
+      "name": "Sign in",
+      "url": "https://hearth.app/login"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Getting Started",
+      "pages": ["getting-started"]
+    }
+  ],
+  "footerSocials": {}
+}

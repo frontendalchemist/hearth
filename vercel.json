@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/jobs/expiry-alerts",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/jobs/ai-nudges",
+      "schedule": "0 10 * * 1"
+    }
+  ]
+}
