@@ -38,53 +38,11 @@ For a solo developer, you don't need a GitHub Organization yet — a personal ac
 - [x] Enable **GitHub Actions** — free tier gives 2,000 minutes/month on private repos
 - [ ] _(After first CI run)_ Go back to branch ruleset → add **Require status checks to pass** → select the `CI` check → also enable **Do not allow bypassing the above settings**
 
-**When you hire your first engineer, upgrade to a GitHub Organization:**
-
-Create the org, then configure Auth0 as a SAML IdP for SSO. Org name must be decided upfront — it's baked into the SAML audience URL and is painful to change.
-
-In Auth0:
-
-1. **Applications** → **Create Application** → **Regular Web App** → name it "GitHub SSO"
-2. **Addons** tab → enable **SAML2 Web App** with this config:
-
-```json
-{
-  "audience": "https://github.com/orgs/YOUR-ORG-NAME",
-  "mappings": {
-    "email": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
-    "name": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"
-  },
-  "nameIdentifierFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
-  "nameIdentifierProbes": [
-    "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"
-  ]
-}
-```
-
-3. Copy the **Identity Provider Login URL** and **Certificate** from the Usage tab
-
-In GitHub:
-
-1. Org settings → **Security** → **Authentication security** → Enable SAML
-2. Paste Auth0's Login URL, issuer (`https://YOUR-TENANT.auth0.com/`), and certificate
-3. Click **Test SAML configuration** — fix any errors before saving
-4. **Do not** check "Require SAML" yet — each member must link their account first at `https://github.com/orgs/YOUR-ORG/sso`, then you enforce it
-
-Org hardening settings (set these when creating the org):
-
-```
-Base permissions:        None
-Repository creation:     Disabled
-Require 2FA:             Enabled
-Dependabot alerts:       Enabled
-Secret scanning:         Enabled
-```
-
 ### Other Day-1 Tasks
 
-- [ ] **1Password** (personal plan, $3/mo) — store all credentials here from day one; never in notes or `.env` files committed to git
+- [x] **1Password** (personal plan, $3/mo) — store all credentials here from day one; never in notes or `.env` files committed to git
 - [ ] **Slack** — set up free workspace; create `#deploys` and `#alerts` channels for CI/CD notifications
-- [ ] **Linear** — free tier; create a project, seed Phase 0 epics
+- [x] **Linear** — free tier; create a project, seed Phase 0 epics
 
 **Key deliverable:** Repo created; branch protection on; secret scanning enabled; credentials in 1Password
 
@@ -174,54 +132,30 @@ S3 is the one AWS service you use from day one — there's no good substitute fo
 2. Copy `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` to your `.env`
 3. Free tier: 10,000 commands/day — covers development and early users easily
 
-#### Setting up Vercel (frontend + API)
+#### Setting up Netlify (frontend + API)
 
-1. Sign up at vercel.com → Add New Project → import your GitHub repo
-2. Vercel detects Next.js automatically; set the root directory to `apps/web`
-3. Add all environment variables in the Vercel dashboard (DATABASE_URL, UPSTASH keys, Auth0 keys, AWS keys, ANTHROPIC_API_KEY, RESEND_API_KEY)
-4. Every push to `main` deploys automatically; every PR gets a live preview URL with its own environment
-5. Add Cron Jobs in `apps/web/vercel.json`:
-
-```json
-{
-  "crons": [
-    { "path": "/api/jobs/expiry-alerts", "schedule": "0 9 * * *" },
-    { "path": "/api/jobs/ai-nudges", "schedule": "0 8 * * 1" }
-  ]
-}
-```
-
-6. Add `CRON_SECRET` env var in Vercel dashboard; verify it in each job Route Handler to prevent unauthorized calls
+1. Sign up at netlify.com → "Add new site" → "Import an existing project" → connect GitHub → select repo
+2. Set build settings: Base directory `apps/web`, Build command `pnpm build`, Publish directory `apps/web/.next`
+3. Install the **Netlify Next.js runtime** plugin when prompted (handles API routes and server components)
+4. Add all environment variables in the Netlify dashboard (DATABASE_URL, UPSTASH keys, Auth0 keys, AWS keys, ANTHROPIC_API_KEY, RESEND_API_KEY)
+5. Every push to `main` deploys automatically; every PR gets a live preview URL
+6. Enable `staging` branch deploy: Site configuration → Build & deploy → Branch deploys → add `staging`
+7. **Cron jobs** (`/api/jobs/expiry-alerts`, `/api/jobs/ai-nudges`): Netlify Scheduled Functions handle these — implement when building the job Route Handlers. Add `CRON_SECRET` to env vars at that point and verify it in each handler.
 
 #### CI pipeline (Stage 1)
 
 ```yaml
-# .github/workflows/ci.yml
-name: CI
-on: [push, pull_request]
-jobs:
-  ci:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
-        with: { version: 9 }
-      - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: pnpm }
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm lint
-      - run: pnpm test
-      # Vercel deploys automatically via its GitHub integration
-      # No explicit deploy step needed — Vercel handles both frontend and API
+# .github/workflows/ci.yml — already configured in repo
+# Netlify deploys automatically via its GitHub integration
+# No explicit deploy step needed — Netlify handles both frontend and API
 ```
 
 **Stage 1 tasks:**
 
-- [ ] AWS account created; root MFA enabled
-- [ ] IAM user `hearth-app` created; access keys in 1Password
-- [ ] S3 bucket created with versioning, block public access, SSE-S3
-- [ ] Neon database created; Prisma migrations applied
+- [x] AWS account created; root MFA enabled
+- [x] IAM user `hearth-app` created; access keys in 1Password
+- [x] S3 bucket created with versioning, block public access, SSE-S3
+- [x] Neon database created; Prisma migrations applied
 - [ ] Upstash Redis created; connection verified
 - [ ] Auth0 configured (see Milestone 0.3)
 - [ ] Vercel project deployed; frontend loads and `/api/health` Route Handler returns 200
@@ -280,6 +214,18 @@ With full-stack Next.js on Vercel, Stage 2 is mostly about upgrading to paid tie
 ### Stage 3: Team Scale — $500+/mo _(migrate when hiring engineers)_
 
 This is the full setup from the original plan. Add it when you have a team that needs it.
+
+> **Mobile app trigger (non-negotiable):** A mobile app requires a standalone backend API — Vercel serverless functions cannot be reached from a native app over a private VPC. **Complete the Stage 3 backend extraction (App Runner + VPC + RDS + ElastiCache) before writing a single line of mobile app code.** Not at mobile launch — before mobile development starts. The migration is infrastructure-only (no Prisma schema changes, no query changes, no frontend changes — only `DATABASE_URL` and Redis env vars change). The cost is ~$150–250/mo. Doing it mid-product is the worst time; doing it before mobile sprint 1 is the right time.
+>
+> **What the migration requires:**
+>
+> 1. Provision VPC + subnets + security groups in AWS
+> 2. Provision RDS (Postgres) + RDS Proxy for connection pooling
+> 3. Provision ElastiCache (Redis) inside the VPC
+> 4. Extract `apps/api` (Fastify or Hono) and deploy to App Runner
+> 5. Update `DATABASE_URL` → RDS Proxy endpoint; update Redis env vars → ElastiCache endpoint
+> 6. Run `prisma migrate deploy` against RDS
+> 7. Vercel continues hosting the Next.js frontend unchanged
 
 | Addition                                             | Why it's needed then and not now                                                                                                       |
 | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
@@ -940,3 +886,58 @@ Before writing any feature code, confirm all of the following. This is the Stage
 3. **Neon long-term**: Neon works well with Vercel serverless throughout Stages 1 and 2. Only migrate to RDS when you extract a dedicated backend in Stage 3 — at that point RDS Proxy (~$15/mo) is the zero-ops pooling choice over PgBouncer.
 4. **10DLC timeline**: AT&T brand approval takes 4–8 weeks with no way to expedite. Submit in Month 1 even though SMS is Phase 2 — missing this blocks an entire milestone.
 5. **Storybook hosting**: Chromatic (Storybook's cloud) is free for small teams and gives visual regression diffs on every PR. Worth setting up from day one even solo.
+
+---
+
+## Deferred: GitHub Organization & SSO Setup
+
+> **Do this when you hire your first engineer.** Nothing here is needed while you're solo.
+
+When you're ready to bring on team members, migrate from a personal GitHub repo to a GitHub Organization and configure Auth0 as a SAML SSO provider.
+
+**Important:** Decide on your org name before starting — it's baked into the SAML audience URL and is painful to change later.
+
+### Step 1: Create the GitHub Organization
+
+1. GitHub → Your profile → **Your organizations** → **New organization**
+2. Choose the free tier to start
+3. Set org hardening settings immediately:
+
+```
+Base permissions:        None
+Repository creation:     Disabled
+Require 2FA:             Enabled
+Dependabot alerts:       Enabled
+```
+
+4. Transfer the `hearth` repo from your personal account to the org: repo **Settings** → **Danger Zone** → **Transfer ownership**
+
+### Step 2: Configure Auth0 SAML for GitHub SSO
+
+In Auth0:
+
+1. **Applications** → **Create Application** → **Regular Web App** → name it "GitHub SSO"
+2. **Addons** tab → enable **SAML2 Web App** with this config:
+
+```json
+{
+  "audience": "https://github.com/orgs/YOUR-ORG-NAME",
+  "mappings": {
+    "email": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",
+    "name": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"
+  },
+  "nameIdentifierFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
+  "nameIdentifierProbes": [
+    "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress"
+  ]
+}
+```
+
+3. Copy the **Identity Provider Login URL** and **Certificate** from the Usage tab
+
+In GitHub:
+
+1. Org settings → **Security** → **Authentication security** → Enable SAML
+2. Paste Auth0's Login URL, issuer (`https://YOUR-TENANT.auth0.com/`), and certificate
+3. Click **Test SAML configuration** — fix any errors before saving
+4. **Do not** check "Require SAML" yet — each member must link their account first at `https://github.com/orgs/YOUR-ORG/sso`, then enforce it
