@@ -4,6 +4,7 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
+    "typecheck": "turbo typecheck",
     "lint": "turbo lint",
     "test": "turbo test",
     "test:unit": "turbo test:unit",
