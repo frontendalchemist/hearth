@@ -1,6 +1,8 @@
 'use client'
 
+import React from 'react'
 import Link from 'next/link'
+import type { Route } from 'next'
 import { usePathname } from 'next/navigation'
 import {
   FolderOpen,
@@ -11,7 +13,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const navItems = [
+const navItems: { href: Route; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { href: '/vault', label: 'Family Vault', icon: FolderOpen },
   { href: '/health-hub', label: 'Health Hub', icon: Heart },
   { href: '/ai-assistant', label: 'AI Assistant', icon: MessageSquare },
@@ -46,7 +48,7 @@ export function SidebarNav() {
       </nav>
       <div className="border-t border-border pt-4 mt-4">
         <Link
-          href="/auth/logout"
+          href={"/auth/logout" as Route}
           className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-sage-50 hover:text-sage-700 transition-colors"
         >
           Sign out
