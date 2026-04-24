@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
+import { db } from '@hearth/db'
 import { auth0 } from './auth0'
 
 export type AuthUser = {
+  /** DB cuid — use for all foreign keys (userId, uploadedById, etc.) */
+  id: string
+  /** Auth0 subject (e.g. `auth0|abc123`) — stable across logins */
   sub: string
   email: string
   name: string
@@ -13,22 +17,31 @@ const ROLES_CLAIM = 'https://hearth.app/roles'
 /**
  * Call at the top of every Route Handler that requires authentication.
  *
- * Reads the encrypted httpOnly session cookie via `@auth0/nextjs-auth0` v4.
- * The SDK has already verified the cookie's signature and expiry by the time
- * `auth0.getSession()` returns a value — a `null` return means the cookie was
- * missing, tampered with, or expired. There is no Bearer-token/audience flow
- * in this app; see `design_docs/ARCHITECTURE_OVERVIEW.md` §2.
+ * Reads the encrypted httpOnly session cookie via `@auth0/nextjs-auth0` v4,
+ * then loads the corresponding `User` row from Postgres. The DB row is
+ * populated by the `beforeSessionSaved` hook in `./user-sync.ts` on every
+ * login — a missing row here means the sync failed or the cookie was issued
+ * by a different deployment, and either way the safe response is 401.
  *
  * `roles` is sourced from the namespaced claim `https://hearth.app/roles`.
  * No post-login Action writes it today — the field is currently always `[]`.
  * The reader is kept as the hook for a future platform-admin gate.
  *
- * @throws {Response} 401 if no session is present.
+ * @throws {Response} 401 if no session, or no matching User row.
  */
 export async function requireAuth(): Promise<AuthUser> {
   const session = await auth0.getSession()
 
-  if (!session?.user) {
+  if (!session?.user?.sub) {
+    throw NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const user = await db.user.findUnique({
+    where: { auth0Sub: session.user.sub },
+    select: { id: true, email: true, name: true },
+  })
+
+  if (!user) {
     throw NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -38,9 +51,10 @@ export async function requireAuth(): Promise<AuthUser> {
     : []
 
   return {
-    sub: session.user.sub as string,
-    email: session.user.email as string,
-    name: session.user.name as string,
+    id: user.id,
+    sub: session.user.sub,
+    email: user.email,
+    name: user.name,
     roles,
   }
 }
