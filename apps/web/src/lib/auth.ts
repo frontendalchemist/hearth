@@ -8,9 +8,22 @@ export type AuthUser = {
   roles: string[]
 }
 
+const ROLES_CLAIM = 'https://hearth.app/roles'
+
 /**
  * Call at the top of every Route Handler that requires authentication.
- * Returns the authenticated user or throws a 401 response.
+ *
+ * Reads the encrypted httpOnly session cookie via `@auth0/nextjs-auth0` v4.
+ * The SDK has already verified the cookie's signature and expiry by the time
+ * `auth0.getSession()` returns a value — a `null` return means the cookie was
+ * missing, tampered with, or expired. There is no Bearer-token/audience flow
+ * in this app; see `design_docs/ARCHITECTURE_OVERVIEW.md` §2.
+ *
+ * `roles` is sourced from the namespaced claim `https://hearth.app/roles`.
+ * No post-login Action writes it today — the field is currently always `[]`.
+ * The reader is kept as the hook for a future platform-admin gate.
+ *
+ * @throws {Response} 401 if no session is present.
  */
 export async function requireAuth(): Promise<AuthUser> {
   const session = await auth0.getSession()
@@ -19,8 +32,10 @@ export async function requireAuth(): Promise<AuthUser> {
     throw NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const roles: string[] =
-    (session.user['https://hearth.app/roles'] as string[]) ?? []
+  const claimValue = session.user[ROLES_CLAIM]
+  const roles: string[] = Array.isArray(claimValue)
+    ? claimValue.filter((r): r is string => typeof r === 'string')
+    : []
 
   return {
     sub: session.user.sub as string,
