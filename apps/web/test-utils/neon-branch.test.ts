@@ -63,7 +63,7 @@ describe('setupNeonBranch', () => {
     expect(directUrl).toBe('postgres://u:p@host.neon.tech/neondb')
 
     // Verify the create call shape
-    const createCall = fetchMock.mock.calls[1]
+    const createCall = fetchMock.mock.calls[1]!
     expect(createCall[0]).toContain('/projects/fake-project/branches')
     const body = JSON.parse(createCall[1].body as string)
     expect(body.branch.name).toBe('test-12345')
@@ -112,7 +112,7 @@ describe('teardownNeonBranch', () => {
     const { teardownNeonBranch } = await import('./neon-branch')
     await teardownNeonBranch()
 
-    const call = fetchMock.mock.calls[0]
+    const call = fetchMock.mock.calls[0]!
     expect(call[0]).toContain('/projects/fake-project/branches/br-to-delete')
     expect(call[1].method).toBe('DELETE')
   })
