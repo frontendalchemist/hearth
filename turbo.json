@@ -28,7 +28,8 @@
     },
     "test:integration": {
       "dependsOn": ["^build"],
-      "cache": false
+      "cache": false,
+      "env": ["NEON_API_KEY", "NEON_PROJECT_ID", "DATABASE_URL", "GITHUB_RUN_ID"]
     },
     "db:generate": {
       "cache": false
