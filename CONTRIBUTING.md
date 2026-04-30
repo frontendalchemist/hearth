@@ -53,7 +53,18 @@ pnpm test:e2e           # Playwright (requires a running dev server or preview U
 
 ### Integration tests
 
-Requires `NEON_API_KEY` and `NEON_PROJECT_ID` exported in your shell — get them from the Neon dashboard (Account → API keys; project ID is in the project URL).
+Requires `NEON_API_KEY` and `NEON_PROJECT_ID`. The test harness reads them from `apps/web/.env.test.local` (gitignored) — fall back is `process.env`, so CI's GitHub Secrets path still works.
+
+One-time setup:
+
+```bash
+cat > apps/web/.env.test.local <<EOF
+NEON_API_KEY=<from Neon dashboard → Account → API keys>
+NEON_PROJECT_ID=<from your Neon project URL>
+EOF
+```
+
+Then:
 
 ```bash
 pnpm test:integration
