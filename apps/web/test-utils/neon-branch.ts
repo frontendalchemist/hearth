@@ -16,7 +16,7 @@ interface OperationResponse {
 }
 
 interface BranchListResponse {
-  branches: Array<{ id: string; name: string }>
+  branches: Array<{ id: string; name: string; default?: boolean }>
 }
 
 interface ConnectionUriResponse {
@@ -46,11 +46,11 @@ async function neonFetch<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T
 }
 
-async function findMainBranchId(projectId: string): Promise<string> {
+async function findDefaultBranchId(projectId: string): Promise<string> {
   const data = await neonFetch<BranchListResponse>(`/projects/${projectId}/branches`)
-  const main = data.branches.find((b) => b.name === 'main')
-  if (!main) throw new Error('No main branch found in Neon project')
-  return main.id
+  const def = data.branches.find((b) => b.default === true)
+  if (!def) throw new Error('No default branch found in Neon project')
+  return def.id
 }
 
 async function waitForOperation(projectId: string, opId: string): Promise<void> {
@@ -101,7 +101,7 @@ async function readPersistedBranchId(): Promise<string | null> {
 
 export async function setupNeonBranch(): Promise<{ pooledUrl: string; directUrl: string }> {
   const projectId = requiredEnv('NEON_PROJECT_ID')
-  const parentId = await findMainBranchId(projectId)
+  const parentId = await findDefaultBranchId(projectId)
   const name = `test-${process.env.GITHUB_RUN_ID ?? Date.now()}`
 
   const created = await neonFetch<CreateBranchResponse>(`/projects/${projectId}/branches`, {

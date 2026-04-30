@@ -38,10 +38,17 @@ const errResponse = (status: number, body = '') =>
   } as Response)
 
 describe('setupNeonBranch', () => {
-  it('creates a branch from main and returns both pooled and direct URLs', async () => {
+  it('creates a branch from the default branch and returns both pooled and direct URLs', async () => {
     fetchMock
-      // GET /branches → list, find main
-      .mockReturnValueOnce(okJson({ branches: [{ id: 'br-main', name: 'main' }] }))
+      // GET /branches → list, find default
+      .mockReturnValueOnce(
+        okJson({
+          branches: [
+            { id: 'br-other', name: 'staging', default: false },
+            { id: 'br-main', name: 'production', default: true },
+          ],
+        }),
+      )
       // POST /branches → create
       .mockReturnValueOnce(
         okJson({
@@ -72,7 +79,9 @@ describe('setupNeonBranch', () => {
 
   it('writes branchId to the cache file', async () => {
     fetchMock
-      .mockReturnValueOnce(okJson({ branches: [{ id: 'br-main', name: 'main' }] }))
+      .mockReturnValueOnce(
+        okJson({ branches: [{ id: 'br-main', name: 'production', default: true }] }),
+      )
       .mockReturnValueOnce(
         okJson({
           branch: { id: 'br-cached', name: 'test-12345' },
@@ -96,10 +105,12 @@ describe('setupNeonBranch', () => {
     await expect(setupNeonBranch()).rejects.toThrow(/NEON_API_KEY/)
   })
 
-  it('throws when no main branch exists in the project', async () => {
-    fetchMock.mockReturnValueOnce(okJson({ branches: [{ id: 'br-x', name: 'staging' }] }))
+  it('throws when no default branch exists in the project', async () => {
+    fetchMock.mockReturnValueOnce(
+      okJson({ branches: [{ id: 'br-x', name: 'staging', default: false }] }),
+    )
     const { setupNeonBranch } = await import('./neon-branch')
-    await expect(setupNeonBranch()).rejects.toThrow(/main/i)
+    await expect(setupNeonBranch()).rejects.toThrow(/default/i)
   })
 })
 
