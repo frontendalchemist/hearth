@@ -6,16 +6,18 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx src/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "dotenv -e ../../apps/web/.env.local -- prisma studio"
   },
   "dependencies": {
     "@prisma/client": "^5.16.0"
   },
   "devDependencies": {
+    "dotenv-cli": "^11.0.0",
     "prisma": "^5.16.0",
     "tsx": "^4.16.0",
     "typescript": "^5.5.0"
