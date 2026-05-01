@@ -12,6 +12,10 @@ dist/
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+**/tsconfig.tsbuildinfo
+
+# Claude Code user-local settings (should never be tracked)
+.claude/settings.local.json
 
 # Environment variables — NEVER commit these
 .env
