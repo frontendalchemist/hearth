@@ -9,14 +9,22 @@ vi.mock('@hearth/db', () => ({
   },
 }))
 
+const redisGet = vi.fn()
+const redisSet = vi.fn()
+vi.mock('./redis', () => ({
+  getRedis: () => ({ get: redisGet, set: redisSet }),
+}))
+
 import { db } from '@hearth/db'
-import { syncUser } from './user-sync'
+import { syncUser, ensureUserSynced } from './user-sync'
 
 const upsert = vi.mocked(db.user.upsert)
 
 beforeEach(() => {
   upsert.mockReset()
   upsert.mockResolvedValue({} as never)
+  redisGet.mockReset()
+  redisSet.mockReset()
 })
 
 const mkSession = (user: Partial<SessionData['user']> & { sub: string }): SessionData =>
@@ -111,22 +119,62 @@ describe('syncUser', () => {
     expect(upsert).not.toHaveBeenCalled()
   })
 
-  it('returns the session unchanged so the SDK persists it as-is', async () => {
-    const session = mkSession({
-      sub: 'auth0|abc',
-      email: 'a@b.com',
-      name: 'A',
-    })
-
-    const returned = await syncUser(session)
-
-    expect(returned).toBe(session)
-  })
-
   it('propagates DB errors so a failed sync fails the login', async () => {
     upsert.mockRejectedValue(new Error('connection reset'))
     const session = mkSession({ sub: 'auth0|x', email: 'x@y.z', name: 'X' })
 
     await expect(syncUser(session)).rejects.toThrow('connection reset')
+  })
+})
+
+describe('ensureUserSynced', () => {
+  const session = mkSession({
+    sub: 'auth0|cache-test',
+    email: 'm@example.com',
+    name: 'M',
+  })
+
+  it('skips the upsert when the Redis TTL key is present', async () => {
+    redisGet.mockResolvedValue('1')
+
+    await ensureUserSynced(session)
+
+    expect(redisGet).toHaveBeenCalledWith('user-synced:auth0|cache-test')
+    expect(upsert).not.toHaveBeenCalled()
+    expect(redisSet).not.toHaveBeenCalled()
+  })
+
+  it('runs the upsert and sets a 5-minute TTL when no key is present', async () => {
+    redisGet.mockResolvedValue(null)
+    redisSet.mockResolvedValue('OK')
+
+    await ensureUserSynced(session)
+
+    expect(upsert).toHaveBeenCalledOnce()
+    expect(redisSet).toHaveBeenCalledWith('user-synced:auth0|cache-test', '1', { ex: 300 })
+  })
+
+  it('falls through to the upsert when Redis GET fails (best-effort cache)', async () => {
+    redisGet.mockRejectedValue(new Error('upstash unreachable'))
+    redisSet.mockResolvedValue('OK')
+
+    await ensureUserSynced(session)
+
+    expect(upsert).toHaveBeenCalledOnce()
+  })
+
+  it('does not throw when Redis SET fails after a successful upsert', async () => {
+    redisGet.mockResolvedValue(null)
+    redisSet.mockRejectedValue(new Error('upstash unreachable'))
+
+    await expect(ensureUserSynced(session)).resolves.toBeUndefined()
+    expect(upsert).toHaveBeenCalledOnce()
+  })
+
+  it('propagates DB errors from syncUser so a failed sync fails the login', async () => {
+    redisGet.mockResolvedValue(null)
+    upsert.mockRejectedValue(new Error('connection reset'))
+
+    await expect(ensureUserSynced(session)).rejects.toThrow('connection reset')
   })
 })
