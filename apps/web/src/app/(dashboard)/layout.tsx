@@ -1,6 +1,4 @@
-import { redirect } from 'next/navigation'
-import type { Route } from 'next'
-import { auth0 } from '@/lib/auth0'
+import { requireSession } from '@/lib/auth'
 import { SidebarNav } from '@/components/layout/sidebar-nav'
 
 export default async function DashboardLayout({
@@ -8,11 +6,7 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const session = await auth0.getSession()
-
-  if (!session) {
-    redirect('/auth/login' as Route)
-  }
+  await requireSession()
 
   return (
     <div className="flex min-h-screen bg-cream-50">
