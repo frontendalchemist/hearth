@@ -60,3 +60,45 @@ jobs:
       #   run: pnpm test:e2e
       #   env:
       #     E2E_BASE_URL: ${{ secrets.NETLIFY_PREVIEW_URL || 'http://localhost:3000' }}
+
+  integration:
+    name: Integration tests (real DB)
+    runs-on: ubuntu-latest
+    needs: secrets-scan
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Run integration tests
+        run: pnpm test:integration
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+
+      - name: Clean up leaked Neon branch (safety net)
+        if: always()
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+        run: |
+          F=apps/web/node_modules/.cache/neon-test-branch.json
+          [ -f "$F" ] || exit 0
+          BRANCH_ID=$(jq -r .branchId "$F")
+          curl -fsS -X DELETE -H "Authorization: Bearer $NEON_API_KEY" \
+            "https://console.neon.tech/api/v2/projects/$NEON_PROJECT_ID/branches/$BRANCH_ID" || true
