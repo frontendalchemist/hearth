@@ -32,7 +32,9 @@
       "Read(//private/tmp/**)",
       "Bash(mkdir /Users/whitneysmith/Documents/hearth_base)",
       "Bash(mv /Users/whitneysmith/Documents/aging_gracefully_mvp /Users/whitneysmith/Documents/hearth_base/hearth_app)",
-      "Bash(mv /Users/whitneysmith/Documents/hearth_base/hearth_app/design_docs /Users/whitneysmith/Documents/hearth_base/design_docs)"
+      "Bash(mv /Users/whitneysmith/Documents/hearth_base/hearth_app/design_docs /Users/whitneysmith/Documents/hearth_base/design_docs)",
+      "Bash(pnpm typecheck *)",
+      "Bash(pnpm test:unit)"
     ]
   }
 }
