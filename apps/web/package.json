@@ -15,7 +15,7 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "chromatic": "chromatic --exit-zero-on-changes",
-    "a11y-audit": "node scripts/a11y-audit.mjs"
+    "a11y-audit": "node scripts/a11y-audit.mjs",
     "db:cleanup-test-branches": "tsx test-utils/cleanup-test-branches.ts"
   },
   "dependencies": {
