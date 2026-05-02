@@ -61,6 +61,41 @@ jobs:
       #   env:
       #     E2E_BASE_URL: ${{ secrets.NETLIFY_PREVIEW_URL || 'http://localhost:3000' }}
 
+  chromatic:
+    name: Chromatic visual regression
+    runs-on: ubuntu-latest
+    needs: secrets-scan
+    # Skipped automatically when CHROMATIC_PROJECT_TOKEN is unset (e.g. on forks),
+    # so the job won't break PRs from contributors who don't have the secret.
+    if: ${{ vars.CHROMATIC_ENABLED == 'true' || github.repository_owner == 'PlinytheYounger' }}
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Chromatic needs full git history to diff against the baseline.
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Publish to Chromatic
+        uses: chromaui/action@latest
+        with:
+          projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+          workingDir: apps/web
+          buildScriptName: build-storybook
+          exitZeroOnChanges: true
+          onlyChanged: true
+
   integration:
     name: Integration tests (real DB)
     runs-on: ubuntu-latest
