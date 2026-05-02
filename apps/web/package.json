@@ -13,7 +13,8 @@
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "chromatic": "chromatic --exit-zero-on-changes"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
@@ -71,6 +72,7 @@
     "@storybook/addon-docs": "^10.3.6",
     "@storybook/addon-onboarding": "^10.3.6",
     "vite": "^8.0.10",
-    "eslint-plugin-storybook": "^10.3.6"
+    "eslint-plugin-storybook": "^10.3.6",
+    "chromatic": "^11.0.0"
   }
 }
