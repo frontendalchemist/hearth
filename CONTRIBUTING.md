@@ -105,8 +105,10 @@ The a11y audit runs Playwright + axe-core against a running Storybook. First-tim
 ```bash
 # After editing packages/db/prisma/schema.prisma:
 pnpm db:migrate         # creates a new migration file and applies it
-pnpm db:generate        # regenerates the TypeScript client
+pnpm db:generate        # regenerates the TypeScript client + ERD
 ```
+
+`pnpm db:generate` also regenerates `packages/db/prisma/ERD.md` (a Mermaid entity-relationship diagram). It's checked into the repo so PRs that change the schema show the diagram diff — please commit the regenerated file alongside your schema changes. GitHub renders Mermaid in markdown previews, so the file is viewable directly.
 
 ## Code style
 
