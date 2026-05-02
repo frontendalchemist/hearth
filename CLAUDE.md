@@ -16,8 +16,17 @@ pnpm build               # Turbo build of all workspaces
 pnpm typecheck           # tsc --noEmit across all workspaces
 pnpm lint                # ESLint
 pnpm test:unit           # Vitest, no browser
+pnpm test:unit:watch     # Vitest watch mode
 pnpm test:e2e            # Playwright (requires running server)
+pnpm test:integration    # Vitest against an ephemeral Neon branch
 pnpm format              # Prettier write
+
+# Storybook + visual / a11y checks
+pnpm storybook           # localhost:6006
+pnpm build-storybook     # static build
+pnpm chromatic           # publish snapshots (needs CHROMATIC_PROJECT_TOKEN)
+pnpm a11y-audit          # axe-core / WCAG AA against running Storybook
+pnpm playwright:install  # one-time: install Chromium for a11y-audit + e2e
 
 # Single test file / single test
 pnpm --filter @hearth/web test:unit src/lib/auth.test.ts
@@ -30,6 +39,8 @@ pnpm db:seed             # run packages/db/src/seed.ts
 pnpm --filter @hearth/db db:migrate:deploy   # apply, no prompts (CI / preview branches)
 pnpm --filter @hearth/db db:studio           # Prisma Studio
 ```
+
+All day-to-day commands run from the repo root (`hearth_app/`). The `--filter` form is only needed for (a) workspace-scoped tasks like `db:studio` that aren't passed through, or (b) passing positional args to a specific package's script.
 
 Env: copy `.env.example` to `apps/web/.env.local`. At minimum `DATABASE_URL` and the `AUTH0_*` group are required for the app to boot.
 
