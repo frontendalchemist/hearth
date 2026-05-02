@@ -27,7 +27,7 @@ export function SidebarNav() {
   return (
     <aside className="w-64 bg-white border-r border-border flex flex-col py-6 px-4 shrink-0">
       <div className="mb-8 px-2">
-        <h1 className="font-serif text-xl text-sage-700">Hearth</h1>
+        <h1 className="font-serif text-xl text-primary">Hearth</h1>
       </div>
       <nav className="flex-1 space-y-1">
         {navItems.map(({ href, label, icon: Icon }) => (
@@ -37,8 +37,8 @@ export function SidebarNav() {
             className={cn(
               'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
               pathname.startsWith(href)
-                ? 'bg-sage-50 text-sage-700'
-                : 'text-muted-foreground hover:bg-sage-50 hover:text-sage-700'
+                ? 'bg-hearth-orange-50 text-hearth-orange-700'
+                : 'text-muted-foreground hover:bg-hearth-orange-50 hover:text-hearth-orange-700'
             )}
           >
             <Icon className="h-5 w-5 shrink-0" />
@@ -49,7 +49,7 @@ export function SidebarNav() {
       <div className="border-t border-border pt-4 mt-4">
         <Link
           href={"/auth/logout" as Route}
-          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-sage-50 hover:text-sage-700 transition-colors"
+          className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-hearth-orange-50 hover:text-hearth-orange-700 transition-colors"
         >
           Sign out
         </Link>
