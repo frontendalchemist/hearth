@@ -16,6 +16,7 @@
     "build-storybook": "storybook build",
     "chromatic": "chromatic --exit-zero-on-changes",
     "a11y-audit": "node scripts/a11y-audit.mjs"
+    "db:cleanup-test-branches": "tsx test-utils/cleanup-test-branches.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
@@ -63,6 +64,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "msw": "^2.3.0",
     "postcss": "^8.4.0",
+    "tsx": "^4.16.0",
     "tailwindcss": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.5.0",
