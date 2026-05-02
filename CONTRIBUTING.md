@@ -86,9 +86,12 @@ Components are installed to `apps/web/src/components/ui/`.
 pnpm --filter @hearth/web storybook         # localhost:6006
 pnpm --filter @hearth/web build-storybook   # static build
 pnpm --filter @hearth/web chromatic         # publish snapshots (needs CHROMATIC_PROJECT_TOKEN)
+pnpm --filter @hearth/web a11y-audit        # axe-core / WCAG AA check on every story
 ```
 
 Stories live alongside components in `__stories__/` directories.
+
+The a11y audit runs Playwright + axe-core against a running Storybook (`pnpm storybook` first, then `pnpm a11y-audit` in another shell). Override the URL or axe tags with env vars: `STORYBOOK_URL=http://… AXE_TAGS=wcag2aa pnpm a11y-audit`. Default tag set is WCAG 2.0/2.1/2.2 AA. We chose this over `@storybook/test-runner` because the latter doesn't support Storybook 10 yet — the script is a stand-in until it does.
 
 **One-time Chromatic setup** (do this once when wiring up the project):
 
