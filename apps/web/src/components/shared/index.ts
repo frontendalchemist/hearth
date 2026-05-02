@@ -4,3 +4,9 @@ export { SectionLabel } from "./section-label"
 export { AlertBanner } from "./alert-banner"
 export { EmptyState } from "./empty-state"
 export { Shell } from "./shell"
+export { CareRecipientCard, type CareStage } from "./care-recipient-card"
+export {
+  QuickActions,
+  type QuickAction,
+  type QuickActionVariant,
+} from "./quick-actions"
