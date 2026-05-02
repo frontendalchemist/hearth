@@ -73,7 +73,7 @@ Auth uses `@auth0/nextjs-auth0` **v4** with **encrypted httpOnly session cookies
 Schema is in `packages/db/prisma/schema.prisma`. Key invariants:
 
 - Multi-tenancy is per `CareRecipient`. Almost every domain row carries `careRecipientId`; access is gated by the requesting user's `CareRecipientMembership` for that recipient.
-- Soft-deletable models (`CareRecipient`, `Document`, `Medication`, `Provider`, `Task`) use a `deletedAt` column — filter it out in reads.
+- Soft-deletable models (`CareRecipient`, `Document`, `Medication`, `Provider`, `Task`) use a `deletedAt` column. The `softDeleteExtension` (in `packages/db/src/soft-delete.ts`) auto-injects `where: { deletedAt: null }` on every read and update for these models, and adds `softDelete()` / `softDeleteMany()` methods. Use those instead of `delete()` — `delete()` still hard-deletes if called explicitly. **Caveat:** the extension does not filter relation includes (a Prisma extension limitation). When including a soft-deletable relation, add `where: { deletedAt: null }` explicitly. To intentionally see soft-deleted rows (audit, recovery, seed/reset scripts), import `dbUnsafe` from `@hearth/db`.
 - `AuditLog` is **insert-only** (HIPAA, 7-year retention). Never write `update`/`delete` paths against it.
 - Files (PDFs, images) live in **S3**, never in Postgres. The DB stores only `s3Key` + metadata. Uploads use presigned URLs so bytes never traverse the Next.js function.
 
