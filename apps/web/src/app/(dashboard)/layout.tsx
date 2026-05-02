@@ -1,5 +1,5 @@
 import { requireSession } from '@/lib/auth'
-import { SidebarNav } from '@/components/layout/sidebar-nav'
+import { Shell } from '@/components/shared'
 
 export default async function DashboardLayout({
   children,
@@ -8,10 +8,5 @@ export default async function DashboardLayout({
 }) {
   await requireSession()
 
-  return (
-    <div className="flex min-h-screen bg-cream-50">
-      <SidebarNav />
-      <main className="flex-1 p-8 overflow-auto">{children}</main>
-    </div>
-  )
+  return <Shell>{children}</Shell>
 }

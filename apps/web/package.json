@@ -12,6 +12,10 @@
     "test:unit:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
+    "chromatic": "chromatic --exit-zero-on-changes",
+    "a11y-audit": "node scripts/a11y-audit.mjs",
     "db:cleanup-test-branches": "tsx test-utils/cleanup-test-branches.ts"
   },
   "dependencies": {
@@ -64,6 +68,15 @@
     "tailwindcss": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.5.0",
-    "vitest": "^2.0.0"
+    "vitest": "^2.0.0",
+    "storybook": "^10.3.6",
+    "@storybook/nextjs-vite": "^10.3.6",
+    "@storybook/addon-a11y": "^10.3.6",
+    "@storybook/addon-docs": "^10.3.6",
+    "@storybook/addon-onboarding": "^10.3.6",
+    "vite": "^8.0.10",
+    "eslint-plugin-storybook": "^10.3.6",
+    "chromatic": "^11.0.0",
+    "axe-playwright": "^2.0.3"
   }
 }
