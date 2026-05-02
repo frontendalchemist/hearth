@@ -86,9 +86,9 @@ This one is special: rotating it **invalidates every active session** (every use
 
 ### AWS access key (S3 presigning)
 
-**This is the most rotation-prone secret. The long-term fix is to replace it with Netlify ↔ AWS OIDC federation (HEA-122) — once that lands, this section goes away.**
+This is the most rotation-prone secret in the inventory. Netlify doesn't support OIDC federation to AWS (no native issuer exists), so static IAM access keys are the production pattern. HEA-122 hardens the IAM user and policy; rotation cadence stays quarterly.
 
-Until then:
+Steps:
 
 1. AWS IAM → Users → the Hearth app user → **Security credentials** → **Create access key**. Pick "Application running outside AWS."
 2. Copy `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY`.
