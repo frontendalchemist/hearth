@@ -10,6 +10,7 @@
     "lint": "eslint src",
     "test:unit": "vitest run --passWithNoTests",
     "test:unit:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {

@@ -51,6 +51,27 @@ pnpm test:unit          # Vitest (fast, no browser)
 pnpm test:e2e           # Playwright (requires a running dev server or preview URL)
 ```
 
+### Integration tests
+
+Requires `NEON_API_KEY` and `NEON_PROJECT_ID`. The test harness reads them from `apps/web/.env.test.local` (gitignored) — fall back is `process.env`, so CI's GitHub Secrets path still works.
+
+One-time setup:
+
+```bash
+cat > apps/web/.env.test.local <<EOF
+NEON_API_KEY=<from Neon dashboard → Account → API keys>
+NEON_PROJECT_ID=<from your Neon project URL>
+EOF
+```
+
+Then:
+
+```bash
+pnpm test:integration
+```
+
+Each run creates a Neon branch named `test-<timestamp>` from the project's default branch, applies migrations, runs tests, then deletes the branch. If you Ctrl-C mid-run, check your Neon dashboard for stale `test-*` branches and delete them — the next CI run will not clean up your locally-leaked branches.
+
 ## Adding a shadcn/ui component
 
 ```bash
