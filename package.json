@@ -13,6 +13,7 @@
     "db:generate": "turbo db:generate",
     "db:migrate": "turbo db:migrate",
     "db:seed": "turbo db:seed",
+    "db:cleanup-test-branches": "pnpm --filter @hearth/web db:cleanup-test-branches",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\""
   },
   "devDependencies": {
