@@ -1,0 +1,35 @@
+---
+title: "AI Assistant"
+description: "Caregiving-aware chat scoped to your care recipient — never to the open internet."
+---
+
+<Note>
+  Coming in Sprint 13. This page is a placeholder until the feature ships.
+</Note>
+
+The AI Assistant answers caregiving questions in the context of a specific
+care recipient — medications they're on, conditions they have, the
+documents in their vault — without the family having to re-explain that
+context every time.
+
+## What it will cover
+
+- Streaming Claude API responses (SSE) for fast back-and-forth
+- Context-scoping: every prompt is grounded in one recipient's record
+- Suggested questions surfaced from recent activity ("Should we be
+  worried that Mom started repeating questions yesterday?")
+- Proactive nudges when something in the record changes (new
+  medication, screening overdue)
+- Hourly query rate limits — Hearth pays the model bill, so heavy use
+  is throttled per user
+
+## Privacy invariants
+
+- Messages run through PII stripping before they hit Claude **and** the
+  database. Names, DOBs, and document titles are replaced with
+  category-only references.
+- Conversations are scoped to a care recipient. The AI cannot see data
+  for any recipient the requesting user doesn't have a membership row
+  on.
+- The prompt the assistant sees is constructed from structured records
+  (medications, conditions) — never from raw uploaded document text.
