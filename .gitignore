@@ -30,6 +30,7 @@ packages/db/prisma/migrations/*.sql.bak
 coverage/
 playwright-report/
 test-results/
+.lighthouseci/
 
 # OS
 .DS_Store
