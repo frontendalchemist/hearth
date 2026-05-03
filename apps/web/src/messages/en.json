@@ -1,0 +1,10 @@
+{
+  "common": {
+    "appName": "Hearth"
+  },
+  "auth": {},
+  "home": {},
+  "vault": {},
+  "alerts": {},
+  "family": {}
+}
