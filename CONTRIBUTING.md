@@ -26,12 +26,12 @@ pnpm dev
 
 ## Environment pipeline
 
-| Branch    | Netlify env       | Neon DB branch                    |
-|-----------|-------------------|-----------------------------------|
-| feature/* | (no deploy)       | local `dev` (your `.env.local`)   |
-| PR open   | Deploy preview    | `preview/pr-<n>` (auto-created)   |
-| staging   | Branch deploy     | `staging`                         |
-| main      | Production        | `main`                            |
+| Branch     | Netlify env    | Neon DB branch                  |
+| ---------- | -------------- | ------------------------------- |
+| feature/\* | (no deploy)    | local `dev` (your `.env.local`) |
+| PR open    | Deploy preview | `preview/pr-<n>` (auto-created) |
+| staging    | Branch deploy  | `staging`                       |
+| main       | Production     | `main`                          |
 
 ### Preview DB branches (automatic)
 
@@ -167,6 +167,34 @@ SDK no-ops and the app boots normally — Sentry is opt-in for local dev.
    appear in your Sentry dashboard. Don't ship a long-lived test-error
    route — it's a foot-gun in production.
 
+## Documentation site (Mintlify)
+
+User-facing docs live in `/docs` at the repo root and ship to
+`docs.hearth.app` via Mintlify's GitHub integration — every push to
+`main` auto-deploys. Pages are MDX; configuration is `docs/docs.json`
+(navigation, brand colors, primary CTA).
+
+When a user-visible feature lands, **add or update the relevant page in
+the same PR**. Definition-of-Done enforces this for any UI change.
+
+**Local preview** (uses Mintlify's CLI):
+
+```bash
+pnpm dlx mintlify dev          # boots a local preview at localhost:3000
+                               # cd into /docs first, or pass --port
+```
+
+**One-time Mintlify setup** (do this once when wiring up the project):
+
+1. Sign in at https://mintlify.com with the GitHub account that owns
+   the repo and create a new project pointing at `PlinytheYounger/hearth`,
+   docs root `/docs`.
+2. Add the custom domain `docs.hearth.app` in Mintlify's dashboard;
+   Mintlify gives you a CNAME to point at — add it on whoever hosts
+   the `hearth.app` zone.
+3. Verify auto-deploy: push a small edit to `docs/introduction.mdx`
+   and confirm it appears on the live site within ~60 seconds.
+
 ## Code style
 
 - TypeScript strict mode throughout — no `any`
@@ -187,6 +215,9 @@ Before requesting review on a PR, confirm:
       new migration file is included
 - [ ] If the GraphQL schema changed: `pnpm graphql:codegen` was run and
       `packages/shared/schema.graphql` is committed
+- [ ] If the change is user-visible: the relevant `/docs/*.mdx` page is
+      updated in the same PR (or a new page is added and wired into
+      `docs/docs.json` navigation)
 - [ ] PR description includes a Test plan checklist (use the template
       shown in `gh pr create` examples)
 - [ ] No PHI in analytics events, logs, or error messages — only
