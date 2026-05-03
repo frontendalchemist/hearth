@@ -20,7 +20,7 @@ export type CareStage =
   | 'STAGE_4_MEMORY_CARE'
   | 'STAGE_5_END_OF_LIFE'
 
-export type UserRole = 'ADMIN' | 'MEMBER' | 'VIEWER'
+export type UserRole = 'ADMIN' | 'COORDINATOR' | 'VIEWER'
 
 export type DocumentCategory =
   | 'LEGAL'
@@ -28,6 +28,7 @@ export type DocumentCategory =
   | 'FINANCIAL'
   | 'INSURANCE'
   | 'IDENTITY'
+  | 'CARE_PLANS'
   | 'OTHER'
 
 // Presigned upload request/response
