@@ -28,12 +28,19 @@ CREATE TYPE "AlertType" AS ENUM ('DOCUMENT_MISSING', 'DOCUMENT_EXPIRING', 'DOCUM
 -- CreateEnum
 CREATE TYPE "AlertPriority" AS ENUM ('INFO', 'LOW', 'MEDIUM', 'HIGH', 'URGENT');
 
--- AlterEnum
+-- AlterEnum: rename MEMBER -> COORDINATOR.
+-- The auto-generated diff also alters "Invitation".role here, but Invitation
+-- doesn't exist yet at this point in the migration (created below) — so that
+-- line is intentionally absent. Invitation is created with the renamed
+-- enum already in place.
+-- The CASE expression backfills any pre-existing 'MEMBER' rows to
+-- 'COORDINATOR' so the cast never sees a value missing from the new enum.
 BEGIN;
 CREATE TYPE "Role_new" AS ENUM ('ADMIN', 'COORDINATOR', 'VIEWER');
 ALTER TABLE "CareRecipientMembership" ALTER COLUMN "role" DROP DEFAULT;
-ALTER TABLE "CareRecipientMembership" ALTER COLUMN "role" TYPE "Role_new" USING ("role"::text::"Role_new");
-ALTER TABLE "Invitation" ALTER COLUMN "role" TYPE "Role_new" USING ("role"::text::"Role_new");
+ALTER TABLE "CareRecipientMembership" ALTER COLUMN "role" TYPE "Role_new" USING (
+  CASE WHEN "role"::text = 'MEMBER' THEN 'COORDINATOR' ELSE "role"::text END::"Role_new"
+);
 ALTER TYPE "Role" RENAME TO "Role_old";
 ALTER TYPE "Role_new" RENAME TO "Role";
 DROP TYPE "Role_old";
