@@ -192,6 +192,7 @@ URGENT URGENT
     String location "❓"
     DateTime createdAt 
     DateTime updatedAt 
+    DateTime deletedAt "❓"
     }
   
 
