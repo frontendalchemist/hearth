@@ -166,16 +166,22 @@ enum AlertPriority {
 // ─── Core identity ────────────────────────────────────────────────────────────
 
 model User {
-  id        String   @id @default(cuid())
-  auth0Sub  String   @unique
-  email     String   @unique
+  id        String    @id @default(cuid())
+  auth0Sub  String    @unique
+  email     String    @unique
   name      String
   avatarUrl String?
-  locale    String   @default("en")
+  locale    String    @default("en")
   state     String?
   location  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  // Set when a user invokes CCPA right-to-erasure. The row stays — third-party
+  // contributions (uploaded docs, care-log entries, audit trails) reference it
+  // via FK and HIPAA requires those references to remain stable. PII fields
+  // are scrambled in place at erasure time; `deletedAt` flags the row so the
+  // app can skip rendering "Deleted user" rows where appropriate.
+  deletedAt DateTime?
 
   memberships         CareRecipientMembership[]
   uploadedDocuments   Document[]
