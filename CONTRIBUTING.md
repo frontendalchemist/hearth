@@ -83,30 +83,32 @@ Components are installed to `apps/web/src/components/ui/`.
 ## Storybook + Chromatic
 
 ```bash
-pnpm --filter @hearth/web storybook         # localhost:6006
-pnpm --filter @hearth/web build-storybook   # static build
-pnpm --filter @hearth/web chromatic         # publish snapshots (needs CHROMATIC_PROJECT_TOKEN)
-pnpm --filter @hearth/web a11y-audit        # axe-core / WCAG AA check on every story
+pnpm storybook         # localhost:6006
+pnpm build-storybook   # static build
+pnpm chromatic         # publish snapshots (needs CHROMATIC_PROJECT_TOKEN)
+pnpm a11y-audit        # axe-core / WCAG AA check on every story
 ```
 
 Stories live alongside components in `__stories__/` directories.
 
-The a11y audit runs Playwright + axe-core against a running Storybook (`pnpm storybook` first, then `pnpm a11y-audit` in another shell). Override the URL or axe tags with env vars: `STORYBOOK_URL=http://… AXE_TAGS=wcag2aa pnpm a11y-audit`. Default tag set is WCAG 2.0/2.1/2.2 AA. We chose this over `@storybook/test-runner` because the latter doesn't support Storybook 10 yet — the script is a stand-in until it does.
+The a11y audit runs Playwright + axe-core against a running Storybook. First-time setup needs Chromium installed once (`pnpm playwright:install`); after that, run `pnpm storybook` in one terminal and `pnpm a11y-audit` in another. Override the URL or axe tags with env vars: `STORYBOOK_URL=http://… AXE_TAGS=wcag2aa pnpm a11y-audit`. Default tag set is WCAG 2.0/2.1/2.2 AA. We chose this over `@storybook/test-runner` because the latter doesn't support Storybook 10 yet — the script is a stand-in until it does.
 
 **One-time Chromatic setup** (do this once when wiring up the project):
 
 1. Sign in to https://chromatic.com with the GitHub account that owns the repo and create a new project linked to `PlinytheYounger/hearth`. Copy the project token from the project's Manage page.
 2. Add the token to repo secrets: GitHub → Settings → Secrets and variables → Actions → New repository secret → `CHROMATIC_PROJECT_TOKEN` = the value from step 1.
 3. Enable the CI job: GitHub → Settings → Secrets and variables → Actions → Variables tab → New repository variable → `CHROMATIC_ENABLED` = `true`. (The `chromatic` job is gated on this variable so the workflow doesn't fail on forks or before the secret exists.)
-4. Run `pnpm --filter @hearth/web chromatic` locally once with the token in env to upload the baseline; subsequent PRs will diff against it.
+4. Run `pnpm chromatic` locally once with the token in env to upload the baseline; subsequent PRs will diff against it.
 
 ## Prisma workflow
 
 ```bash
 # After editing packages/db/prisma/schema.prisma:
 pnpm db:migrate         # creates a new migration file and applies it
-pnpm db:generate        # regenerates the TypeScript client
+pnpm db:generate        # regenerates the TypeScript client + ERD
 ```
+
+`pnpm db:generate` also regenerates `packages/db/prisma/ERD.md` (a Mermaid entity-relationship diagram). It's checked into the repo so PRs that change the schema show the diagram diff — please commit the regenerated file alongside your schema changes. GitHub renders Mermaid in markdown previews, so the file is viewable directly.
 
 ## Code style
 

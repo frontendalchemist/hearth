@@ -1,0 +1,89 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+      time: "07:00"
+      timezone: "America/Los_Angeles"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    labels:
+      - "dependencies"
+    groups:
+      next:
+        patterns:
+          - "next"
+          - "@next/*"
+          - "eslint-config-next"
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+      auth0:
+        patterns:
+          - "@auth0/*"
+      aws-sdk:
+        patterns:
+          - "@aws-sdk/*"
+      prisma:
+        patterns:
+          - "prisma"
+          - "@prisma/*"
+      storybook:
+        patterns:
+          - "storybook"
+          - "@storybook/*"
+          - "eslint-plugin-storybook"
+          - "chromatic"
+      eslint:
+        patterns:
+          - "eslint"
+          - "@eslint/*"
+          - "@typescript-eslint/*"
+          - "eslint-plugin-*"
+          - "eslint-config-*"
+        exclude-patterns:
+          - "eslint-config-next"
+          - "eslint-plugin-storybook"
+      testing:
+        patterns:
+          - "vitest"
+          - "@vitejs/*"
+          - "@playwright/*"
+          - "@testing-library/*"
+          - "playwright"
+          - "axe-playwright"
+          - "@axe-core/*"
+          - "msw"
+      tailwind:
+        patterns:
+          - "tailwindcss"
+          - "tailwindcss-*"
+          - "tw-animate-css"
+          - "autoprefixer"
+          - "postcss"
+      types:
+        patterns:
+          - "@types/*"
+        exclude-patterns:
+          - "@types/react"
+          - "@types/react-dom"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "monday"
+      time: "07:00"
+      timezone: "America/Los_Angeles"
+    commit-message:
+      prefix: "ci"
+    labels:
+      - "dependencies"
+      - "ci"

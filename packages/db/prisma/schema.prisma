@@ -1,5 +1,13 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+generator erd {
+  provider                  = "prisma-erd-generator"
+  output                    = "./ERD.md"
+  ignoreEnums               = false
+  includeRelationFromFields = true
 }
 
 datasource db {

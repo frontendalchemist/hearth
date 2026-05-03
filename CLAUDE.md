@@ -16,8 +16,17 @@ pnpm build               # Turbo build of all workspaces
 pnpm typecheck           # tsc --noEmit across all workspaces
 pnpm lint                # ESLint
 pnpm test:unit           # Vitest, no browser
+pnpm test:unit:watch     # Vitest watch mode
 pnpm test:e2e            # Playwright (requires running server)
+pnpm test:integration    # Vitest against an ephemeral Neon branch
 pnpm format              # Prettier write
+
+# Storybook + visual / a11y checks
+pnpm storybook           # localhost:6006
+pnpm build-storybook     # static build
+pnpm chromatic           # publish snapshots (needs CHROMATIC_PROJECT_TOKEN)
+pnpm a11y-audit          # axe-core / WCAG AA against running Storybook
+pnpm playwright:install  # one-time: install Chromium for a11y-audit + e2e
 
 # Single test file / single test
 pnpm --filter @hearth/web test:unit src/lib/auth.test.ts
@@ -30,6 +39,8 @@ pnpm db:seed             # run packages/db/src/seed.ts
 pnpm --filter @hearth/db db:migrate:deploy   # apply, no prompts (CI / preview branches)
 pnpm --filter @hearth/db db:studio           # Prisma Studio
 ```
+
+All day-to-day commands run from the repo root (`hearth_app/`). The `--filter` form is only needed for (a) workspace-scoped tasks like `db:studio` that aren't passed through, or (b) passing positional args to a specific package's script.
 
 Env: copy `.env.example` to `apps/web/.env.local`. At minimum `DATABASE_URL` and the `AUTH0_*` group are required for the app to boot.
 
@@ -62,7 +73,7 @@ Auth uses `@auth0/nextjs-auth0` **v4** with **encrypted httpOnly session cookies
 Schema is in `packages/db/prisma/schema.prisma`. Key invariants:
 
 - Multi-tenancy is per `CareRecipient`. Almost every domain row carries `careRecipientId`; access is gated by the requesting user's `CareRecipientMembership` for that recipient.
-- Soft-deletable models (`CareRecipient`, `Document`, `Medication`, `Provider`, `Task`) use a `deletedAt` column — filter it out in reads.
+- Soft-deletable models (`CareRecipient`, `Document`, `Medication`, `Provider`, `Task`) use a `deletedAt` column. The `softDeleteExtension` (in `packages/db/src/soft-delete.ts`) auto-injects `where: { deletedAt: null }` on every read and update for these models, and adds `softDelete()` / `softDeleteMany()` methods. Use those instead of `delete()` — `delete()` still hard-deletes if called explicitly. **Caveat:** the extension does not filter relation includes (a Prisma extension limitation). When including a soft-deletable relation, add `where: { deletedAt: null }` explicitly. To intentionally see soft-deleted rows (audit, recovery, seed/reset scripts), import `dbUnsafe` from `@hearth/db`.
 - `AuditLog` is **insert-only** (HIPAA, 7-year retention). Never write `update`/`delete` paths against it.
 - Files (PDFs, images) live in **S3**, never in Postgres. The DB stores only `s3Key` + metadata. Uploads use presigned URLs so bytes never traverse the Next.js function.
 
