@@ -1,0 +1,200 @@
+name: Preview DB
+
+# Per-PR Neon branch lifecycle. Each PR gets its own isolated copy of the
+# database so concurrent PRs can run migrations and seed data without
+# stepping on each other. Branches are named `preview/pr-<n>` and torn
+# down on PR close.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+env:
+  NEON_API: https://console.neon.tech/api/v2
+  PREVIEW_BRANCH_NAME: preview/pr-${{ github.event.pull_request.number }}
+
+jobs:
+  setup:
+    name: Create / refresh Neon preview branch
+    # Skip for dependabot — version bumps don't need a preview DB and the
+    # branch churn would crowd Neon's free-tier branch quota.
+    if: github.event.action != 'closed' && github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Create preview branch
+        id: neon
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+
+          # If a stale branch from a prior push to this PR exists, drop it
+          # so each push starts from a clean copy of main. Phase 0 has no
+          # interesting per-PR seed state worth preserving across pushes.
+          STALE_ID=$(curl -fsS -H "Authorization: Bearer $NEON_API_KEY" \
+            "$NEON_API/projects/$NEON_PROJECT_ID/branches" \
+            | jq -r --arg name "$PREVIEW_BRANCH_NAME" \
+                '.branches[] | select(.name == $name) | .id' | head -1)
+          if [ -n "$STALE_ID" ]; then
+            echo "Deleting stale branch $STALE_ID"
+            curl -fsS -X DELETE -H "Authorization: Bearer $NEON_API_KEY" \
+              "$NEON_API/projects/$NEON_PROJECT_ID/branches/$STALE_ID" || true
+            sleep 5
+          fi
+
+          PARENT_ID=$(curl -fsS -H "Authorization: Bearer $NEON_API_KEY" \
+            "$NEON_API/projects/$NEON_PROJECT_ID/branches" \
+            | jq -r '.branches[] | select(.default == true) | .id')
+
+          CREATE=$(curl -fsS -X POST -H "Authorization: Bearer $NEON_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"branch\":{\"name\":\"$PREVIEW_BRANCH_NAME\",\"parent_id\":\"$PARENT_ID\"},\"endpoints\":[{\"type\":\"read_write\"}]}" \
+            "$NEON_API/projects/$NEON_PROJECT_ID/branches")
+          BRANCH_ID=$(echo "$CREATE" | jq -r '.branch.id')
+          OP_IDS=$(echo "$CREATE" | jq -r '.operations[].id')
+
+          # Wait for the branch + endpoint to be fully provisioned before we
+          # try to connect. Neon returns 200 from /branches POST before the
+          # compute is ready to accept connections.
+          for OP_ID in $OP_IDS; do
+            for i in $(seq 1 30); do
+              STATUS=$(curl -fsS -H "Authorization: Bearer $NEON_API_KEY" \
+                "$NEON_API/projects/$NEON_PROJECT_ID/operations/$OP_ID" \
+                | jq -r '.operation.status')
+              if [ "$STATUS" = "finished" ]; then break; fi
+              if [ "$STATUS" = "failed" ]; then
+                echo "Neon operation $OP_ID failed"; exit 1
+              fi
+              sleep 1
+            done
+          done
+
+          POOLED_URL=$(curl -fsS -H "Authorization: Bearer $NEON_API_KEY" \
+            "$NEON_API/projects/$NEON_PROJECT_ID/connection_uri?branch_id=$BRANCH_ID&database_name=neondb&role_name=neondb_owner&pooled=true" \
+            | jq -r '.uri')
+
+          # Mask the connection string from logs even though jobs only run
+          # for trusted contributors on this private repo.
+          echo "::add-mask::$POOLED_URL"
+          echo "DATABASE_URL=$POOLED_URL" >> "$GITHUB_OUTPUT"
+          echo "BRANCH_ID=$BRANCH_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Apply migrations
+        env:
+          DATABASE_URL: ${{ steps.neon.outputs.DATABASE_URL }}
+        run: pnpm --filter @hearth/db exec prisma migrate deploy
+
+      - name: Seed
+        env:
+          DATABASE_URL: ${{ steps.neon.outputs.DATABASE_URL }}
+        # Bypass the local-dev `pnpm db:seed` script (which requires a
+        # `apps/web/.env.local` file via dotenv-cli) and call tsx directly
+        # against the env-supplied DATABASE_URL.
+        run: pnpm --filter @hearth/db exec tsx src/seed.ts
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = process.env.PREVIEW_BRANCH_NAME;
+            const marker = '<!-- preview-db-comment -->';
+            const body = [
+              marker,
+              '🌿 **Preview DB ready**',
+              '',
+              `Neon branch: \`${branch}\``,
+              '',
+              'Migrations applied and seed data loaded. Branch is auto-deleted when this PR closes.',
+              '',
+              `Local connection: \`pnpm dlx neonctl connection-string ${branch}\` (requires NEON_API_KEY in your shell).`,
+            ].join('\n');
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const existing = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number, per_page: 100,
+            });
+            const prior = existing.find((c) => c.body && c.body.includes(marker));
+            if (prior) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: prior.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+
+  teardown:
+    name: Delete Neon preview branch
+    # Mirrors the setup-job filter — dependabot PRs never created a branch.
+    if: github.event.action == 'closed' && github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Delete preview branch
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+
+          BRANCH_ID=$(curl -fsS -H "Authorization: Bearer $NEON_API_KEY" \
+            "$NEON_API/projects/$NEON_PROJECT_ID/branches" \
+            | jq -r --arg name "$PREVIEW_BRANCH_NAME" \
+                '.branches[] | select(.name == $name) | .id' | head -1)
+
+          if [ -z "$BRANCH_ID" ]; then
+            echo "No branch named $PREVIEW_BRANCH_NAME; nothing to delete."
+            exit 0
+          fi
+
+          echo "Deleting branch $PREVIEW_BRANCH_NAME ($BRANCH_ID)"
+          curl -fsS -X DELETE -H "Authorization: Bearer $NEON_API_KEY" \
+            "$NEON_API/projects/$NEON_PROJECT_ID/branches/$BRANCH_ID"
+
+      - name: Update PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const branch = process.env.PREVIEW_BRANCH_NAME;
+            const marker = '<!-- preview-db-comment -->';
+            const body = [
+              marker,
+              '🌿 **Preview DB deleted**',
+              '',
+              `Neon branch \`${branch}\` was removed when this PR closed.`,
+            ].join('\n');
+
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const existing = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number, per_page: 100,
+            });
+            const prior = existing.find((c) => c.body && c.body.includes(marker));
+            if (prior) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: prior.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
