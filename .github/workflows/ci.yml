@@ -14,7 +14,7 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - uses: gitleaks/gitleaks-action@v2
@@ -27,7 +27,7 @@ jobs:
     needs: secrets-scan
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - uses: pnpm/action-setup@v3
         with:
@@ -70,7 +70,7 @@ jobs:
     if: ${{ vars.CHROMATIC_ENABLED == 'true' || github.repository_owner == 'PlinytheYounger' }}
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           # Chromatic needs full git history to diff against the baseline.
           fetch-depth: 0
@@ -103,7 +103,7 @@ jobs:
     if: github.event_name == 'pull_request'
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - uses: pnpm/action-setup@v3
         with:
