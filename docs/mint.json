@@ -20,7 +20,10 @@
   "navigation": [
     {
       "group": "Getting Started",
-      "pages": ["getting-started"]
+      "pages": [
+        "getting-started",
+        "changelog"
+      ]
     },
     {
       "group": "Caregiving",
