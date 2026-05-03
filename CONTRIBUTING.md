@@ -167,6 +167,54 @@ SDK no-ops and the app boots normally — Sentry is opt-in for local dev.
    appear in your Sentry dashboard. Don't ship a long-lived test-error
    route — it's a foot-gun in production.
 
+## Scheduled jobs (Netlify Scheduled Functions)
+
+Cron-style jobs are split across two files so the schedule and the work
+live separately:
+
+- `netlify/functions/<name>.ts` — Netlify Scheduled Function. Holds the
+  cron expression in its `export const config = { schedule: '...' }` and
+  does nothing except `fetch()` the matching Route Handler with the
+  shared `CRON_SECRET` bearer token.
+- `apps/web/src/app/api/jobs/<name>/route.ts` — Route Handler that
+  validates the bearer token and runs the actual job. This is where new
+  job logic goes; the scheduled function is a one-line trigger.
+
+Currently wired:
+
+| Function                                | Schedule         | Route Handler                |
+| --------------------------------------- | ---------------- | ---------------------------- |
+| `netlify/functions/expiry-alerts.ts`    | `0 9 * * *` (daily 09:00 UTC) | `/api/jobs/expiry-alerts` |
+| `netlify/functions/ai-nudges.ts`        | `0 10 * * 1` (Mondays 10:00 UTC) | `/api/jobs/ai-nudges` |
+
+**Test a job locally** by calling the Route Handler directly — the
+scheduled function is just a wrapper around `fetch`:
+
+```bash
+curl -i -H "Authorization: Bearer $CRON_SECRET" \
+  http://localhost:3000/api/jobs/expiry-alerts
+# → 200 {"ok": true, ...}
+
+# Wrong / missing token returns 401 — proves the gate works:
+curl -i http://localhost:3000/api/jobs/expiry-alerts
+# → 401 {"error": "Unauthorized"}
+```
+
+**Verify in production** by tailing the Netlify Functions log
+(`netlify logs:function expiry-alerts` or the Functions tab in the
+Netlify dashboard). A successful invocation prints `upstream 200`.
+
+**One-time Netlify setup:**
+
+1. Add `CRON_SECRET` (a long random string — use `openssl rand -hex 32`)
+   to the Netlify site env: Site settings → Environment variables → Add
+   variable. Add the same value to your local `apps/web/.env.local` so
+   `pnpm dev` + curl works against your machine.
+2. The `URL` env var is set automatically by Netlify on every deploy;
+   no action needed.
+3. Confirm the schedule is registered: Netlify dashboard → Functions →
+   each scheduled function shows its cron expression and last run.
+
 ## Documentation site (Mintlify)
 
 User-facing docs live in `/docs` at the repo root and ship to

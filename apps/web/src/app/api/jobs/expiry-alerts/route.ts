@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// Vercel Cron: runs daily at 9am UTC (see vercel.json)
+// Triggered daily at 09:00 UTC by netlify/functions/expiry-alerts.ts.
+// Bearer token is the shared CRON_SECRET (set in Netlify env).
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
