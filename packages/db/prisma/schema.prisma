@@ -19,7 +19,7 @@ datasource db {
 
 enum Role {
   ADMIN
-  MEMBER
+  COORDINATOR
   VIEWER
 }
 
@@ -29,7 +29,14 @@ enum DocumentCategory {
   FINANCIAL
   INSURANCE
   IDENTITY
+  CARE_PLANS
   OTHER
+}
+
+enum DocumentVisibility {
+  ALL_MEMBERS
+  ADMIN_ONLY
+  SPECIFIC_MEMBERS
 }
 
 enum DocumentStatus {
@@ -78,6 +85,84 @@ enum AuditAction {
   SHARE
 }
 
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
+enum ShareType {
+  EMERGENCY_PACKET
+  DOCUMENT
+  CARE_SUMMARY
+}
+
+enum InteractionSeverity {
+  LOW
+  MODERATE
+  HIGH
+}
+
+enum ScreeningStatus {
+  OVERDUE
+  DUE_THIS_YEAR
+  UPCOMING
+  COMPLETED
+}
+
+enum WarningSignDomain {
+  COGNITIVE
+  PHYSICAL
+  FUNCTIONAL
+  FINANCIAL
+  SOCIAL
+}
+
+enum WarningUrgency {
+  MONITOR
+  SEE_DOCTOR
+  ACT_NOW
+}
+
+enum CareLogCategory {
+  COGNITIVE
+  MEDICAL
+  PHYSICAL
+  NUTRITIONAL
+  SOCIAL
+  FINANCIAL
+  BEHAVIORAL
+  LEGAL_ADMINISTRATIVE
+  OTHER
+}
+
+enum AlertType {
+  DOCUMENT_MISSING
+  DOCUMENT_EXPIRING
+  DOCUMENT_NEEDS_SIGNATURE
+  MEDICATION_LOW_REFILL
+  SCREENING_OVERDUE
+  DRUG_INTERACTION
+  TASK_OVERDUE
+  COVERAGE_EXPIRING
+  MEDICARE_OEP
+  STAGE_CHANGE_SUGGESTED
+  SHARE_LINK_ACCESSED
+  COLLABORATOR_JOINED
+  DOCUMENT_UPLOADED_BY_OTHER
+  FAMILY_MEETING_RECOMMENDED
+  SPECIALIST_RECOMMENDED
+}
+
+enum AlertPriority {
+  INFO
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
 // ─── Core identity ────────────────────────────────────────────────────────────
 
 model User {
@@ -86,47 +171,67 @@ model User {
   email     String   @unique
   name      String
   avatarUrl String?
+  locale    String   @default("en")
+  state     String?
+  location  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memberships        CareRecipientMembership[]
-  uploadedDocuments  Document[]
-  assignedTasks      Task[]                    @relation("AssignedTo")
-  createdTasks       Task[]                    @relation("CreatedBy")
-  careLogEntries     CareLogEntry[]
-  auditLogs          AuditLog[]
-  aiConversations    AiConversation[]
-  consentRecords     ConsentRecord[]
+  memberships         CareRecipientMembership[]
+  uploadedDocuments   Document[]
+  assignedTasks       Task[]                     @relation("AssignedTo")
+  createdTasks        Task[]                     @relation("CreatedBy")
+  careLogEntries      CareLogEntry[]
+  aiConversations     AiConversation[]
+  consentRecords      ConsentRecord[]
+  alerts              Alert[]
+  agingPlan           AgingPlan?
+  documentPermissions DocumentPermissionMember[]
+  invitationsSent     Invitation[]               @relation("InvitationsSent")
+  invitationsAccepted Invitation[]               @relation("InvitationsAccepted")
+  warningSignLogs     WarningSignLog[]           @relation("WarningSignLogger")
 }
 
 model CareRecipient {
-  id          String     @id @default(cuid())
+  id          String    @id @default(cuid())
   firstName   String
   lastName    String
   dateOfBirth DateTime?
   photoUrl    String?
-  careStage   CareStage  @default(STAGE_1_INDEPENDENT)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  deletedAt   DateTime?  // soft delete
+  careStage   CareStage @default(STAGE_1_INDEPENDENT)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
 
-  memberships    CareRecipientMembership[]
-  documents      Document[]
-  medications    Medication[]
-  providers      Provider[]
-  screenings     Screening[]
-  tasks          Task[]
-  careLogEntries CareLogEntry[]
-  aiConversations AiConversation[]
-  stageAssessments StageAssessment[]
+  memberships         CareRecipientMembership[]
+  documents           Document[]
+  documentContacts    DocumentContact[]
+  sharedDocumentLinks DocumentRecipientLink[]
+  medications         Medication[]
+  conditions          Condition[]
+  allergies           Allergy[]
+  providers           Provider[]
+  appointments        Appointment[]
+  screenings          Screening[]
+  tasks               Task[]
+  careLogEntries      CareLogEntry[]
+  aiConversations     AiConversation[]
+  stageAssessments    StageAssessment[]
+  warningSignLogs     WarningSignLog[]
+  alerts              Alert[]
+  agingPlans          AgingPlan[]
+  invitations         Invitation[]
 }
 
 model CareRecipientMembership {
-  id              String        @id @default(cuid())
+  id              String   @id @default(cuid())
   userId          String
   careRecipientId String
-  role            Role          @default(MEMBER)
-  createdAt       DateTime      @default(now())
+  role            Role     @default(COORDINATOR)
+  // Per-membership relationship label ("daughter", "neighbor"). Not per-User
+  // because the same user can relate to two recipients differently.
+  relationship    String?
+  createdAt       DateTime @default(now())
 
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   careRecipient CareRecipient @relation(fields: [careRecipientId], references: [id], onDelete: Cascade)
@@ -134,39 +239,139 @@ model CareRecipientMembership {
   @@unique([userId, careRecipientId])
 }
 
-// ─── Family Vault ─────────────────────────────────────────────────────────────
+// Pending invitations to a CareRecipient workspace. Status transitions:
+// PENDING → ACCEPTED | REVOKED | EXPIRED. Once non-PENDING, retained for audit.
+model Invitation {
+  id              String           @id @default(cuid())
+  token           String           @unique @default(cuid())
+  email           String
+  careRecipientId String
+  role            Role
+  invitedById     String
+  status          InvitationStatus @default(PENDING)
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  acceptedById    String?
+  revokedAt       DateTime?
+  createdAt       DateTime         @default(now())
+
+  careRecipient CareRecipient @relation(fields: [careRecipientId], references: [id])
+  invitedBy     User          @relation("InvitationsSent", fields: [invitedById], references: [id])
+  acceptedBy    User?         @relation("InvitationsAccepted", fields: [acceptedById], references: [id])
+
+  @@index([email, status])
+  @@index([careRecipientId, status])
+  @@index([token])
+}
+
+// ─── Documents ────────────────────────────────────────────────────────────────
 
 model Document {
-  id              String           @id @default(cuid())
+  id              String             @id @default(cuid())
   careRecipientId String
   uploadedById    String
   filename        String
-  s3Key           String           @unique
+  s3Key           String             @unique
   mimeType        String
   sizeBytes       Int
-  category        DocumentCategory @default(OTHER)
+  category        DocumentCategory   @default(OTHER)
+  customCategory  String?
+  visibility      DocumentVisibility @default(ALL_MEMBERS)
   tags            String[]
-  status          DocumentStatus   @default(PENDING)
+  status          DocumentStatus     @default(PENDING)
   expiresAt       DateTime?
   notes           String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  deletedAt       DateTime?        // soft delete
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  deletedAt       DateTime?
 
-  careRecipient CareRecipient @relation(fields: [careRecipientId], references: [id])
-  uploadedBy    User          @relation(fields: [uploadedById], references: [id])
-  shareLinks    ShareLink[]
+  careRecipient     CareRecipient              @relation(fields: [careRecipientId], references: [id])
+  uploadedBy        User                       @relation(fields: [uploadedById], references: [id])
+  shareLinks        ShareLink[]
+  permissionMembers DocumentPermissionMember[]
+  recipientLinks    DocumentRecipientLink[]
+
+  @@index([careRecipientId, category])
+  @@index([expiresAt])
 }
 
-model ShareLink {
-  id         String    @id @default(cuid())
+// Cross-recipient document sharing: documents owned by one CareRecipient that
+// are also surfaced (read-only) in other recipients' vaults. Writes remain
+// gated by membership on Document.careRecipientId.
+model DocumentRecipientLink {
+  id              String   @id @default(cuid())
+  documentId      String
+  careRecipientId String
+  createdAt       DateTime @default(now())
+
+  document      Document      @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  careRecipient CareRecipient @relation(fields: [careRecipientId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, careRecipientId])
+  @@index([careRecipientId])
+}
+
+// Junction for SPECIFIC_MEMBERS document visibility.
+model DocumentPermissionMember {
+  id         String @id @default(cuid())
   documentId String
-  token      String    @unique @default(cuid())
-  expiresAt  DateTime
-  createdAt  DateTime  @default(now())
-  usedAt     DateTime?
+  userId     String
 
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, userId])
+}
+
+// ShareLink is polymorphic. resourceId is interpreted by `type`:
+//   EMERGENCY_PACKET | CARE_SUMMARY  → resourceId = careRecipientId
+//   DOCUMENT                          → resourceId = documentId (also FK below)
+model ShareLink {
+  id             String    @id @default(cuid())
+  token          String    @unique @default(cuid())
+  type           ShareType
+  resourceId     String
+  createdById    String
+  expiresAt      DateTime
+  pin            String?
+  viewLimit      Int?
+  accessCount    Int       @default(0)
+  lastAccessedAt DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime  @default(now())
+
+  documentId String?
+  document   Document? @relation(fields: [documentId], references: [id])
+
+  @@index([token])
+  @@index([expiresAt])
+}
+
+// Non-user contacts who can be reminded to upload a document (the "Dorothy"
+// flow). These people don't have Hearth accounts.
+model DocumentContact {
+  id              String   @id @default(cuid())
+  careRecipientId String
+  name            String
+  email           String?
+  phone           String?
+  relationship    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  careRecipient CareRecipient      @relation(fields: [careRecipientId], references: [id])
+  reminders     DocumentReminder[]
+}
+
+model DocumentReminder {
+  id          String    @id @default(cuid())
+  contactId   String
+  documentTag String
+  sentAt      DateTime  @default(now())
+  respondedAt DateTime?
+  channel     String
+
+  contact DocumentContact @relation(fields: [contactId], references: [id])
 }
 
 // ─── Health Hub ───────────────────────────────────────────────────────────────
@@ -183,9 +388,62 @@ model Medication {
   refillDate      DateTime?
   notes           String?
   isActive        Boolean             @default(true)
+  isBeersCriteria Boolean             @default(false)
+  externalId      String?
+  source          String?
+  fhirJson        Json?
+  lastSyncedAt    DateTime?
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
   deletedAt       DateTime?
+
+  careRecipient   CareRecipient           @relation(fields: [careRecipientId], references: [id])
+  interactionsAsA MedicationInteraction[] @relation("MedicationA")
+  interactionsAsB MedicationInteraction[] @relation("MedicationB")
+
+  @@index([careRecipientId, isActive])
+}
+
+model MedicationInteraction {
+  id            String              @id @default(cuid())
+  medicationAId String
+  medicationBId String
+  severity      InteractionSeverity
+  description   String
+  source        String?
+  createdAt     DateTime            @default(now())
+
+  medicationA Medication @relation("MedicationA", fields: [medicationAId], references: [id])
+  medicationB Medication @relation("MedicationB", fields: [medicationBId], references: [id])
+
+  @@unique([medicationAId, medicationBId])
+}
+
+model Condition {
+  id              String    @id @default(cuid())
+  careRecipientId String
+  name            String
+  diagnosedAt     DateTime?
+  notes           String?
+  isActive        Boolean   @default(true)
+  externalId      String?
+  fhirJson        Json?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  careRecipient CareRecipient @relation(fields: [careRecipientId], references: [id])
+}
+
+model Allergy {
+  id              String               @id @default(cuid())
+  careRecipientId String
+  allergen        String
+  reaction        String?
+  severity        InteractionSeverity?
+  externalId      String?
+  fhirJson        Json?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
 
   careRecipient CareRecipient @relation(fields: [careRecipientId], references: [id])
 }
@@ -198,6 +456,7 @@ model Provider {
   phone           String?
   fax             String?
   address         String?
+  organization    String?
   notes           String?
   isPrimary       Boolean   @default(false)
   createdAt       DateTime  @default(now())
@@ -205,44 +464,40 @@ model Provider {
   deletedAt       DateTime?
 
   careRecipient CareRecipient @relation(fields: [careRecipientId], references: [id])
+  appointments  Appointment[]
+}
+
+model Appointment {
+  id              String   @id @default(cuid())
+  careRecipientId String
+  providerId      String?
+  title           String
+  scheduledAt     DateTime
+  notes           String?
+  prepChecklist   Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  careRecipient CareRecipient @relation(fields: [careRecipientId], references: [id])
+  provider      Provider?     @relation(fields: [providerId], references: [id])
+
+  @@index([careRecipientId, scheduledAt])
 }
 
 model Screening {
-  id              String    @id @default(cuid())
+  id              String          @id @default(cuid())
   careRecipientId String
   name            String
   lastDate        DateTime?
   nextDueDate     DateTime?
+  status          ScreeningStatus @default(UPCOMING)
   notes           String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  externalId      String?
+  fhirJson        Json?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   careRecipient CareRecipient @relation(fields: [careRecipientId], references: [id])
-}
-
-// ─── AI Assistant ─────────────────────────────────────────────────────────────
-
-model AiConversation {
-  id              String    @id @default(cuid())
-  careRecipientId String
-  userId          String
-  title           String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-
-  careRecipient CareRecipient @relation(fields: [careRecipientId], references: [id])
-  user          User          @relation(fields: [userId], references: [id])
-  messages      AiMessage[]
-}
-
-model AiMessage {
-  id             String   @id @default(cuid())
-  conversationId String
-  role           String   // 'user' | 'assistant'
-  content        String
-  createdAt      DateTime @default(now())
-
-  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 }
 
 // ─── Stage Navigator ──────────────────────────────────────────────────────────
@@ -253,9 +508,92 @@ model StageAssessment {
   stage           CareStage
   assessedAt      DateTime  @default(now())
   notes           String?
-  responses       Json?     // FHIR-ready: structured questionnaire responses
+  responses       Json?
 
   careRecipient CareRecipient @relation(fields: [careRecipientId], references: [id])
+
+  @@index([careRecipientId, assessedAt])
+}
+
+model WarningSignLog {
+  id              String            @id @default(cuid())
+  careRecipientId String
+  loggedById      String
+  domain          WarningSignDomain
+  observation     String
+  // System-derived from observation type, not user-entered. Stored (not
+  // computed-on-read) so historical badges remain stable if the rule table
+  // changes.
+  urgency         WarningUrgency
+  observedAt      DateTime          @default(now())
+  notes           String?
+  resolvedAt      DateTime?
+
+  careRecipient CareRecipient @relation(fields: [careRecipientId], references: [id])
+  loggedBy      User          @relation("WarningSignLogger", fields: [loggedById], references: [id])
+
+  @@index([careRecipientId, domain])
+  @@index([careRecipientId, urgency, resolvedAt])
+}
+
+// ─── My Aging Plan ────────────────────────────────────────────────────────────
+
+// Caregiver's personal aging plan, scoped to a User. Phase 2 links it to a
+// self-CareRecipient record via the nullable careRecipientId FK; nullable from
+// the start so adding the link later is not a migration.
+model AgingPlan {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  careRecipientId String?
+  state           String?
+  completionPct   Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user           User                 @relation(fields: [userId], references: [id])
+  careRecipient  CareRecipient?       @relation(fields: [careRecipientId], references: [id])
+  sections       AgingPlanSection[]
+  journalEntries WishesJournalEntry[]
+  advDirective   AdvanceDirective?
+}
+
+model AgingPlanSection {
+  id            String   @id @default(cuid())
+  planId        String
+  sectionKey    String
+  completionPct Int      @default(0)
+  data          Json?
+  updatedAt     DateTime @updatedAt
+
+  plan AgingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, sectionKey])
+}
+
+model AdvanceDirective {
+  id              String    @id @default(cuid())
+  planId          String    @unique
+  state           String
+  templateVersion String
+  responses       Json
+  pdfS3Key        String?
+  generatedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  plan AgingPlan @relation(fields: [planId], references: [id])
+}
+
+model WishesJournalEntry {
+  id        String   @id @default(cuid())
+  planId    String
+  prompt    String?
+  content   String
+  isShared  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  plan AgingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
 }
 
 // ─── Family Workspace ─────────────────────────────────────────────────────────
@@ -278,22 +616,93 @@ model Task {
   careRecipient CareRecipient @relation(fields: [careRecipientId], references: [id])
   createdBy     User          @relation("CreatedBy", fields: [createdById], references: [id])
   assignedTo    User?         @relation("AssignedTo", fields: [assignedToId], references: [id])
+
+  @@index([careRecipientId, status])
+  @@index([assignedToId, status])
 }
 
 model CareLogEntry {
-  id              String    @id @default(cuid())
+  id              String           @id @default(cuid())
   careRecipientId String
   authorId        String
   content         String
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  category        CareLogCategory?
+  customCategory  String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   careRecipient CareRecipient @relation(fields: [careRecipientId], references: [id])
   author        User          @relation(fields: [authorId], references: [id])
+
+  @@index([careRecipientId, createdAt])
+  @@index([careRecipientId, category])
+}
+
+// ─── Alerts ───────────────────────────────────────────────────────────────────
+
+model Alert {
+  id              String        @id @default(cuid())
+  careRecipientId String?
+  userId          String
+  type            AlertType
+  priority        AlertPriority
+  title           String
+  body            String?
+  actionUrl       String?
+  resourceType    String?
+  resourceId      String?
+  isRead          Boolean       @default(false)
+  readAt          DateTime?
+  isDismissed     Boolean       @default(false)
+  dismissedAt     DateTime?
+  snoozedUntil    DateTime?
+  expiresAt       DateTime?
+  createdAt       DateTime      @default(now())
+
+  careRecipient CareRecipient? @relation(fields: [careRecipientId], references: [id])
+  user          User           @relation(fields: [userId], references: [id])
+
+  // Cron idempotency: alert-scan must UPSERT, not duplicate. resourceType /
+  // resourceId are non-null for resource-bound alerts, empty-string for
+  // global per-user alerts (e.g. MEDICARE_OEP).
+  @@unique([userId, type, resourceType, resourceId])
+  @@index([userId, isDismissed, isRead])
+  @@index([careRecipientId, isDismissed])
+  @@index([expiresAt])
+}
+
+// ─── AI Assistant ─────────────────────────────────────────────────────────────
+
+model AiConversation {
+  id              String   @id @default(cuid())
+  careRecipientId String?
+  userId          String
+  title           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  careRecipient CareRecipient? @relation(fields: [careRecipientId], references: [id])
+  user          User           @relation(fields: [userId], references: [id])
+  messages      AiMessage[]
+}
+
+model AiMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String
+  // Stripped content only — raw user input (which may contain PHI) is never
+  // persisted. PII stripping must run before the API call and the DB write.
+  content        String
+  createdAt      DateTime @default(now())
+
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 }
 
 // ─── Compliance ───────────────────────────────────────────────────────────────
 
+// Insert-only. Never UPDATE or DELETE. Retained 7 years (HIPAA).
+// `userId` is a soft pointer (no FK relation) so the row survives user
+// deletion — required for audit integrity.
 model AuditLog {
   id           String      @id @default(cuid())
   userId       String?
@@ -305,23 +714,26 @@ model AuditLog {
   metadata     Json?
   createdAt    DateTime    @default(now())
 
-  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
-
-  // Insert-only table — no updates or deletes. Retained 7 years per HIPAA.
   @@index([userId])
   @@index([resourceType, resourceId])
   @@index([createdAt])
 }
 
+// Immutable legal record of user consent. Insert-only for the acceptance event;
+// withdrawal is captured via `revokedAt` + `revocationReason` on the same row
+// (decided up front per DATABASE_DESIGN.md §6/§11f).
 model ConsentRecord {
-  id          String   @id @default(cuid())
-  userId      String
-  consentType String   // e.g. 'terms_of_service', 'hipaa_notice', 'marketing'
-  version     String
-  acceptedAt  DateTime @default(now())
-  ipAddress   String?
+  id               String    @id @default(cuid())
+  userId           String
+  consentType      String
+  version          String
+  acceptedAt       DateTime  @default(now())
+  ipAddress        String?
+  revokedAt        DateTime?
+  revocationReason String?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
 
   @@unique([userId, consentType, version])
+  @@index([userId])
 }
