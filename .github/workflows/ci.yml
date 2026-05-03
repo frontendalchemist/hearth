@@ -44,6 +44,16 @@ jobs:
       - name: Generate Prisma client
         run: pnpm db:generate
 
+      - name: Verify packages/shared/schema.graphql is in sync
+        run: |
+          pnpm graphql:codegen
+          if ! git diff --quiet packages/shared/schema.graphql; then
+            echo "::error::packages/shared/schema.graphql is stale."
+            echo "Run 'pnpm graphql:codegen' locally and commit the result."
+            git --no-pager diff packages/shared/schema.graphql
+            exit 1
+          fi
+
       - name: Type check
         run: pnpm typecheck
 
