@@ -10,16 +10,21 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
-    "db:seed": "tsx src/seed.ts",
-    "db:studio": "dotenv -e ../../apps/web/.env.local -- prisma studio"
+    "db:seed": "dotenv -e ../../apps/web/.env.local -- tsx src/seed.ts",
+    "db:reset": "dotenv -e ../../apps/web/.env.local -- prisma migrate reset --force --skip-seed && pnpm db:seed",
+    "db:studio": "dotenv -e ../../apps/web/.env.local -- prisma studio",
+    "test:unit": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@prisma/client": "^5.16.0"
   },
   "devDependencies": {
+    "@faker-js/faker": "^9.0.0",
     "dotenv-cli": "^11.0.0",
     "prisma": "^5.16.0",
+    "prisma-erd-generator": "^2.4.2",
     "tsx": "^4.16.0",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
   }
 }
