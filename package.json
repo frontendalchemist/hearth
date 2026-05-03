@@ -19,10 +19,15 @@
     "db:generate": "turbo db:generate",
     "db:migrate": "turbo db:migrate",
     "db:seed": "turbo db:seed",
+    "db:reset": "pnpm --filter @hearth/db db:reset",
+    "db:studio": "pnpm --filter @hearth/db db:studio",
     "db:cleanup-test-branches": "pnpm --filter @hearth/web db:cleanup-test-branches",
+    "graphql:codegen": "pnpm --filter @hearth/web graphql:codegen",
+    "lighthouse": "pnpm --filter @hearth/web lighthouse",
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\""
   },
   "devDependencies": {
+    "@lhci/cli": "^0.14.0",
     "turbo": "^2.1.0",
     "prettier": "^3.3.0",
     "typescript": "^5.5.0"

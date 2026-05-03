@@ -26,22 +26,36 @@ pnpm dev
 
 ## Environment pipeline
 
-| Branch | Vercel env | Neon DB branch |
-|--------|-----------|---------------|
-| feature/* | Preview | dev |
-| PR open | Preview | preview/pr-\<n\> (auto-created) |
-| staging | Preview (named) | staging |
-| main | Production | main |
+| Branch     | Netlify env    | Neon DB branch                  |
+| ---------- | -------------- | ------------------------------- |
+| feature/\* | (no deploy)    | local `dev` (your `.env.local`) |
+| PR open    | Deploy preview | `preview/pr-<n>` (auto-created) |
+| staging    | Branch deploy  | `staging`                       |
+| main       | Production     | `main`                          |
 
-**Creating a preview DB branch manually:**
-```bash
-neon branches create --name preview/pr-42 --parent main
-DATABASE_URL=$(neon connection-string preview/pr-42) pnpm db:migrate deploy
-```
+### Preview DB branches (automatic)
 
-**Deleting a preview branch:**
+`.github/workflows/preview-db.yml` runs on every PR and manages the per-PR
+Neon branch lifecycle:
+
+- **PR opened / pushed / reopened** — creates (or recreates) a Neon branch
+  named `preview/pr-<number>` parented at `main`, runs migrations, runs the
+  seed script, and posts a "🌿 Preview DB ready" comment on the PR.
+- **PR closed** (merged or not) — deletes the branch and updates the comment.
+
+Dependabot PRs are skipped to keep the free-tier branch quota free for
+human work. If a workflow run fails partway, the next push will clean up
+the stale branch before retrying.
+
+To use a preview branch from your local machine:
+
 ```bash
-neon branches delete preview/pr-42
+# Get the connection string (needs NEON_API_KEY in your shell):
+pnpm dlx neonctl connection-string preview/pr-42
+
+# Use it for one-off commands:
+DATABASE_URL=$(pnpm dlx neonctl connection-string preview/pr-42) \
+  pnpm --filter @hearth/db exec prisma studio
 ```
 
 ## Running tests
@@ -105,11 +119,109 @@ The a11y audit runs Playwright + axe-core against a running Storybook. First-tim
 ```bash
 # After editing packages/db/prisma/schema.prisma:
 pnpm db:migrate         # creates a new migration file and applies it
-pnpm db:generate        # regenerates the TypeScript client
+pnpm db:generate        # regenerates the TypeScript client + ERD
 ```
+
+`pnpm db:generate` also regenerates `packages/db/prisma/ERD.md` (a Mermaid entity-relationship diagram). It's checked into the repo so PRs that change the schema show the diagram diff — please commit the regenerated file alongside your schema changes. GitHub renders Mermaid in markdown previews, so the file is viewable directly.
+
+## GraphQL schema
+
+The Pothos schema in `apps/web/src/lib/graphql/schema.ts` is the source
+of truth for types; the generated SDL is committed at
+`packages/shared/schema.graphql` so external consumers (mobile clients,
+codegen tools) can pin against it without spinning up a server.
+
+```bash
+pnpm graphql:codegen   # regenerates packages/shared/schema.graphql
+```
+
+CI runs the same command and fails the build if the committed file is
+out of sync — so any PR that edits the schema must commit the
+regenerated SDL alongside it. The generator uses
+`lexicographicSortSchema` so output ordering is stable across runs.
+
+## Sentry (error tracking)
+
+Sentry is wired through `apps/web/instrumentation.ts` (server + edge) and
+`apps/web/instrumentation-client.ts` (browser). Both runtimes share
+`apps/web/src/lib/sentry-options.ts`, which enforces HIPAA-safe defaults:
+no session replay, `sendDefaultPii: false`, `beforeSend` strips
+query strings + cookies + request bodies, `beforeBreadcrumb` drops
+`ui.input` events. The flags are pinned by unit tests so a future change
+that flips one off fails CI.
+
+When `NEXT_PUBLIC_SENTRY_DSN` is unset (the default for new clones), the
+SDK no-ops and the app boots normally — Sentry is opt-in for local dev.
+
+**One-time Sentry setup:**
+
+1. Create a Next.js project at https://sentry.io.
+2. Copy the DSN into `apps/web/.env.local` as `NEXT_PUBLIC_SENTRY_DSN`.
+3. For source-map upload at deploy time, add `SENTRY_AUTH_TOKEN`,
+   `SENTRY_ORG`, and `SENTRY_PROJECT` to the Netlify deploy environment
+   (and to GitHub Actions secrets if/when CI uploads sourcemaps). When
+   `SENTRY_AUTH_TOKEN` is missing, `next.config.mjs` skips the
+   `withSentryConfig` wrapper, so dev builds without Sentry credentials
+   still succeed.
+4. Trigger a test error from a Route Handler and the UI; verify both
+   appear in your Sentry dashboard. Don't ship a long-lived test-error
+   route — it's a foot-gun in production.
+
+## Documentation site (Mintlify)
+
+User-facing docs live in `/docs` at the repo root and ship to
+`docs.hearth.app` via Mintlify's GitHub integration — every push to
+`main` auto-deploys. Pages are MDX; configuration is `docs/docs.json`
+(navigation, brand colors, primary CTA).
+
+When a user-visible feature lands, **add or update the relevant page in
+the same PR**. Definition-of-Done enforces this for any UI change.
+
+**Local preview** (uses Mintlify's CLI):
+
+```bash
+pnpm dlx mintlify dev          # boots a local preview at localhost:3000
+                               # cd into /docs first, or pass --port
+```
+
+**One-time Mintlify setup** (do this once when wiring up the project):
+
+1. Sign in at https://mintlify.com with the GitHub account that owns
+   the repo and create a new project pointing at `PlinytheYounger/hearth`,
+   docs root `/docs`.
+2. Add the custom domain `docs.hearth.app` in Mintlify's dashboard;
+   Mintlify gives you a CNAME to point at — add it on whoever hosts
+   the `hearth.app` zone.
+3. Verify auto-deploy: push a small edit to `docs/introduction.mdx`
+   and confirm it appears on the live site within ~60 seconds.
 
 ## Code style
 
 - TypeScript strict mode throughout — no `any`
 - No comments explaining what code does — only why (non-obvious constraints, workarounds)
 - PHI rule: never pass names, DOBs, diagnoses, or document titles to analytics or logs
+
+## Definition of Done
+
+Before requesting review on a PR, confirm:
+
+- [ ] `pnpm typecheck` passes
+- [ ] `pnpm lint` passes
+- [ ] `pnpm test:unit` passes (and new logic has a test)
+- [ ] If the PR touches a Route Handler / page that hits the DB, an
+      integration test or `pnpm test:e2e` smoke run covers the path
+- [ ] If `packages/db/prisma/schema.prisma` changed:
+      `packages/db/prisma/ERD.md` is regenerated and committed, and a
+      new migration file is included
+- [ ] If the GraphQL schema changed: `pnpm graphql:codegen` was run and
+      `packages/shared/schema.graphql` is committed
+- [ ] If the change is user-visible: the relevant `/docs/*.mdx` page is
+      updated in the same PR (or a new page is added and wired into
+      `docs/docs.json` navigation)
+- [ ] PR description includes a Test plan checklist (use the template
+      shown in `gh pr create` examples)
+- [ ] No PHI in analytics events, logs, or error messages — only
+      categories, types, and counts
+- [ ] No new secrets in committed files — `.env.local`, credential
+      JSONs, etc. stay gitignored
+- [ ] Linear issue ID in the commit subject (`<type> (HEA-#): <action>`)
