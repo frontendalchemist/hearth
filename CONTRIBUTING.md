@@ -26,22 +26,36 @@ pnpm dev
 
 ## Environment pipeline
 
-| Branch | Vercel env | Neon DB branch |
-|--------|-----------|---------------|
-| feature/* | Preview | dev |
-| PR open | Preview | preview/pr-\<n\> (auto-created) |
-| staging | Preview (named) | staging |
-| main | Production | main |
+| Branch    | Netlify env       | Neon DB branch                    |
+|-----------|-------------------|-----------------------------------|
+| feature/* | (no deploy)       | local `dev` (your `.env.local`)   |
+| PR open   | Deploy preview    | `preview/pr-<n>` (auto-created)   |
+| staging   | Branch deploy     | `staging`                         |
+| main      | Production        | `main`                            |
 
-**Creating a preview DB branch manually:**
-```bash
-neon branches create --name preview/pr-42 --parent main
-DATABASE_URL=$(neon connection-string preview/pr-42) pnpm db:migrate deploy
-```
+### Preview DB branches (automatic)
 
-**Deleting a preview branch:**
+`.github/workflows/preview-db.yml` runs on every PR and manages the per-PR
+Neon branch lifecycle:
+
+- **PR opened / pushed / reopened** — creates (or recreates) a Neon branch
+  named `preview/pr-<number>` parented at `main`, runs migrations, runs the
+  seed script, and posts a "🌿 Preview DB ready" comment on the PR.
+- **PR closed** (merged or not) — deletes the branch and updates the comment.
+
+Dependabot PRs are skipped to keep the free-tier branch quota free for
+human work. If a workflow run fails partway, the next push will clean up
+the stale branch before retrying.
+
+To use a preview branch from your local machine:
+
 ```bash
-neon branches delete preview/pr-42
+# Get the connection string (needs NEON_API_KEY in your shell):
+pnpm dlx neonctl connection-string preview/pr-42
+
+# Use it for one-off commands:
+DATABASE_URL=$(pnpm dlx neonctl connection-string preview/pr-42) \
+  pnpm --filter @hearth/db exec prisma studio
 ```
 
 ## Running tests
@@ -110,8 +124,46 @@ pnpm db:generate        # regenerates the TypeScript client + ERD
 
 `pnpm db:generate` also regenerates `packages/db/prisma/ERD.md` (a Mermaid entity-relationship diagram). It's checked into the repo so PRs that change the schema show the diagram diff — please commit the regenerated file alongside your schema changes. GitHub renders Mermaid in markdown previews, so the file is viewable directly.
 
+## GraphQL schema
+
+The Pothos schema in `apps/web/src/lib/graphql/schema.ts` is the source
+of truth for types; the generated SDL is committed at
+`packages/shared/schema.graphql` so external consumers (mobile clients,
+codegen tools) can pin against it without spinning up a server.
+
+```bash
+pnpm graphql:codegen   # regenerates packages/shared/schema.graphql
+```
+
+CI runs the same command and fails the build if the committed file is
+out of sync — so any PR that edits the schema must commit the
+regenerated SDL alongside it. The generator uses
+`lexicographicSortSchema` so output ordering is stable across runs.
+
 ## Code style
 
 - TypeScript strict mode throughout — no `any`
 - No comments explaining what code does — only why (non-obvious constraints, workarounds)
 - PHI rule: never pass names, DOBs, diagnoses, or document titles to analytics or logs
+
+## Definition of Done
+
+Before requesting review on a PR, confirm:
+
+- [ ] `pnpm typecheck` passes
+- [ ] `pnpm lint` passes
+- [ ] `pnpm test:unit` passes (and new logic has a test)
+- [ ] If the PR touches a Route Handler / page that hits the DB, an
+      integration test or `pnpm test:e2e` smoke run covers the path
+- [ ] If `packages/db/prisma/schema.prisma` changed:
+      `packages/db/prisma/ERD.md` is regenerated and committed, and a
+      new migration file is included
+- [ ] If the GraphQL schema changed: `pnpm graphql:codegen` was run and
+      `packages/shared/schema.graphql` is committed
+- [ ] PR description includes a Test plan checklist (use the template
+      shown in `gh pr create` examples)
+- [ ] No PHI in analytics events, logs, or error messages — only
+      categories, types, and counts
+- [ ] No new secrets in committed files — `.env.local`, credential
+      JSONs, etc. stay gitignored
+- [ ] Linear issue ID in the commit subject (`<type> (HEA-#): <action>`)
