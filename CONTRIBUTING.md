@@ -249,6 +249,26 @@ pnpm dlx mintlify dev          # boots a local preview at localhost:3000
 - No comments explaining what code does — only why (non-obvious constraints, workarounds)
 - PHI rule: never pass names, DOBs, diagnoses, or document titles to analytics or logs
 
+## i18n
+
+The app is wired through `next-intl` (config: `apps/web/src/i18n.ts`,
+strings: `apps/web/src/messages/<locale>.json`). Phase 0 ships English-only,
+but the contract is in place from day one so future locales are config-only:
+
+- **No hardcoded UI strings.** Every user-visible string goes through
+  `useTranslations(namespace)` in client components or `getTranslations`
+  in server components. New strings get added under one of the existing
+  namespaces in `messages/en.json` (`common`, `auth`, `home`, `vault`,
+  `alerts`, `family`).
+- **No raw date-formatting calls.** Don't call
+  `Date.prototype.toLocaleString` / `toLocaleDateString` / `toLocaleTimeString`,
+  and don't hardcode a BCP-47 tag like `'en-US'`. Use
+  `formatDate(date, locale, options?)` from
+  `apps/web/src/lib/format/date.ts`. Get the locale from
+  `requireAuth().locale` (Route Handlers / Server Components) — it falls
+  back to `"en"` via the Prisma default. CI greps `apps/web/src` and
+  fails on either pattern.
+
 ## Definition of Done
 
 Before requesting review on a PR, confirm:

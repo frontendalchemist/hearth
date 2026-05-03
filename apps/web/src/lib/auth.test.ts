@@ -42,11 +42,17 @@ const ensureSynced = vi.mocked(ensureUserSynced);
 const mockRedirect = vi.mocked(redirect);
 
 const mockDbUser = (
-  overrides?: Partial<{ id: string; email: string; name: string }>,
+  overrides?: Partial<{
+    id: string;
+    email: string;
+    name: string;
+    locale: string;
+  }>,
 ) => ({
   id: "clxyz123",
   email: "margaret@example.com",
   name: "Margaret",
+  locale: "en",
   ...overrides,
 });
 
@@ -103,8 +109,20 @@ describe("requireAuth", () => {
       sub: "auth0|abc123",
       email: "margaret@example.com",
       name: "Margaret",
+      locale: "en",
       roles: [],
     });
+  });
+
+  it("returns the User.locale from the DB (not a hardcoded default)", async () => {
+    getSession.mockResolvedValue({
+      user: { sub: "auth0|abc123", email: "m@e.com", name: "M" },
+    } as never);
+    findUnique.mockResolvedValue(mockDbUser({ locale: "es-MX" }) as never);
+
+    const user = await requireAuth();
+
+    expect(user.locale).toBe("es-MX");
   });
 
   it("prefers DB email/name over session values (DB is the persisted truth)", async () => {
@@ -170,7 +188,7 @@ describe("requireAuth", () => {
 
     expect(findUnique).toHaveBeenCalledWith({
       where: { auth0Sub: "auth0|lookup-key" },
-      select: { id: true, email: true, name: true },
+      select: { id: true, email: true, name: true, locale: true },
     });
   });
 
@@ -253,6 +271,7 @@ describe("hasRole / requireRole", () => {
     sub: "auth0|x",
     email: "x@y.z",
     name: "X",
+    locale: "en",
     roles: ["PLATFORM_ADMIN"],
   };
 

@@ -58,6 +58,30 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Forbid raw locale-bound date formatting
+        # Every displayed date must route through src/lib/format/date.ts so
+        # the user's locale (User.locale, exposed via requireAuth) is honored.
+        # Test fixtures legitimately pass literal locales to formatDate, so
+        # *.test.* files are excluded.
+        run: |
+          set -e
+          if grep -RInE \
+              --include='*.ts' --include='*.tsx' \
+              --exclude='*.test.ts' --exclude='*.test.tsx' \
+              '\.(toLocaleString|toLocaleDateString|toLocaleTimeString)\(' \
+              apps/web/src; then
+            echo "::error::Use formatDate from @/lib/format/date.ts — Date.prototype.toLocale*() is forbidden."
+            exit 1
+          fi
+          if grep -RInE \
+              --include='*.ts' --include='*.tsx' \
+              --exclude='*.test.ts' --exclude='*.test.tsx' \
+              "['\"]en-US['\"]" \
+              apps/web/src; then
+            echo "::error::Hardcoded 'en-US' locale found — pass requireAuth().locale instead."
+            exit 1
+          fi
+
       - name: Unit tests
         run: pnpm test:unit
 
