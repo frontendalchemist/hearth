@@ -28,6 +28,7 @@
     "@hearth/db": "workspace:*",
     "@hearth/shared": "workspace:*",
     "@pothos/core": "^4.0.0",
+    "@sentry/nextjs": "^8.40.0",
     "@tanstack/react-query": "^5.51.0",
     "@upstash/redis": "^1.34.0",
     "class-variance-authority": "^0.7.1",
