@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages } from 'next-intl/server'
 import { PostHogProvider } from '@/components/providers/posthog-provider'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { CookieConsentBanner } from '@/components/shared/cookie-consent-banner'
 import './globals.css'
 
 const inter = Inter({
@@ -35,6 +36,7 @@ export default async function RootLayout({
         <NextIntlClientProvider locale={locale} messages={messages}>
           <PostHogProvider>
             <TooltipProvider>{children}</TooltipProvider>
+            <CookieConsentBanner />
           </PostHogProvider>
         </NextIntlClientProvider>
       </body>

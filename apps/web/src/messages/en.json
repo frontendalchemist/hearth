@@ -2,6 +2,12 @@
   "common": {
     "appName": "Hearth"
   },
+  "cookie": {
+    "title": "Cookies & analytics",
+    "body": "We use a sign-in cookie so you stay logged in, and anonymous usage data to understand how Hearth is used. We never share your family's information.",
+    "accept": "Accept all",
+    "decline": "Decline analytics"
+  },
   "auth": {},
   "home": {},
   "vault": {},
