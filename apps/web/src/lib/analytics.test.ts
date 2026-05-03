@@ -14,7 +14,10 @@ vi.mock('posthog-js', () => ({
 }))
 
 import posthog from 'posthog-js'
-import { identifyUser, initAnalytics, resetAnalytics, track } from './analytics'
+import { identifyUser, resetAnalytics, track } from './analytics'
+// initAnalytics is intentionally not imported here — every test in the
+// `initAnalytics` block uses `vi.resetModules()` and re-imports it
+// dynamically so the module-level `initialized` flag starts fresh.
 
 describe('initAnalytics', () => {
   beforeEach(() => {
