@@ -1,0 +1,6 @@
+type Query {
+  """
+  Liveness probe — always returns true. Placeholder until typed queries are added in Sprint 1.
+  """
+  serverHealth: Boolean
+}
