@@ -105,10 +105,6 @@ jobs:
           AUTH0_SECRET: ci-placeholder-secret-value-must-be-32-chars-or-more
           UPSTASH_REDIS_REST_URL: https://example.upstash.io
           UPSTASH_REDIS_REST_TOKEN: ci-placeholder-token
-          # Bypass auth0.middleware() so OIDC discovery against the
-          # placeholder AUTH0_DOMAIN doesn't hang the dev server. Honored
-          # only by src/middleware.ts; never set outside CI.
-          E2E_SKIP_AUTH0_MIDDLEWARE: 'true'
 
       - name: Upload Playwright report on failure
         if: failure()
