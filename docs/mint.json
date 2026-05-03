@@ -21,6 +21,23 @@
     {
       "group": "Getting Started",
       "pages": ["getting-started"]
+    },
+    {
+      "group": "Caregiving",
+      "pages": [
+        "family-vault",
+        "family-workspace",
+        "stage-navigator",
+        "health-hub"
+      ]
+    },
+    {
+      "group": "AI",
+      "pages": ["ai-assistant"]
+    },
+    {
+      "group": "Help",
+      "pages": ["faq"]
     }
   ],
   "footerSocials": {}

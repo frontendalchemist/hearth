@@ -1,0 +1,45 @@
+---
+title: "FAQ"
+description: "Common questions about Hearth."
+---
+
+<Note>
+  Placeholder. Real Q&A is added as the beta surfaces them.
+</Note>
+
+## Is Hearth a substitute for medical advice?
+
+No. Hearth is a coordination tool — it helps families track and share
+information about caregiving. It does not provide medical, legal, or
+financial advice, and should not be used in place of a clinician or
+attorney.
+
+## Who can see my family's data?
+
+Only people you invite to a specific care recipient's record. Each
+recipient is a separate workspace; being invited to your mother's
+record doesn't grant access to your father's. Family members have
+roles (Admin / Coordinator / Viewer) that scope what they can do.
+
+Hearth staff cannot read uploaded document contents — files are stored
+encrypted in S3 and the database holds metadata only.
+
+## How does Hearth handle HIPAA?
+
+Hearth is HIPAA-adjacent: built for personal-health data, with the
+controls a covered entity would expect (access scoping per care
+recipient, audit logs retained 7 years, encryption at rest and in
+transit, no third-party analytics on PHI), but the app itself is not
+a covered entity unless integrated by one. The full Notice of Privacy
+Practices is in the in-product Privacy Policy.
+
+## How do I delete my account / data?
+
+From your account settings: **Delete account**. This hard-deletes
+your profile, care recipient records you administer, and document
+metadata; S3 objects are removed; audit log entries are anonymized
+(not removed — HIPAA requires a 7-year retention).
+
+## Where can I get help?
+
+Email support@hearth.app — replies usually within 1–2 business days.
