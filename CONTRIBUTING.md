@@ -140,6 +140,33 @@ out of sync — so any PR that edits the schema must commit the
 regenerated SDL alongside it. The generator uses
 `lexicographicSortSchema` so output ordering is stable across runs.
 
+## Sentry (error tracking)
+
+Sentry is wired through `apps/web/instrumentation.ts` (server + edge) and
+`apps/web/instrumentation-client.ts` (browser). Both runtimes share
+`apps/web/src/lib/sentry-options.ts`, which enforces HIPAA-safe defaults:
+no session replay, `sendDefaultPii: false`, `beforeSend` strips
+query strings + cookies + request bodies, `beforeBreadcrumb` drops
+`ui.input` events. The flags are pinned by unit tests so a future change
+that flips one off fails CI.
+
+When `NEXT_PUBLIC_SENTRY_DSN` is unset (the default for new clones), the
+SDK no-ops and the app boots normally — Sentry is opt-in for local dev.
+
+**One-time Sentry setup:**
+
+1. Create a Next.js project at https://sentry.io.
+2. Copy the DSN into `apps/web/.env.local` as `NEXT_PUBLIC_SENTRY_DSN`.
+3. For source-map upload at deploy time, add `SENTRY_AUTH_TOKEN`,
+   `SENTRY_ORG`, and `SENTRY_PROJECT` to the Netlify deploy environment
+   (and to GitHub Actions secrets if/when CI uploads sourcemaps). When
+   `SENTRY_AUTH_TOKEN` is missing, `next.config.mjs` skips the
+   `withSentryConfig` wrapper, so dev builds without Sentry credentials
+   still succeed.
+4. Trigger a test error from a Route Handler and the UI; verify both
+   appear in your Sentry dashboard. Don't ship a long-lived test-error
+   route — it's a foot-gun in production.
+
 ## Code style
 
 - TypeScript strict mode throughout — no `any`
