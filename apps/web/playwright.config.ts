@@ -35,7 +35,13 @@ export default defineConfig({
     : {
         webServer: {
           command: 'pnpm dev',
-          url: baseURL,
+          // Health-probe path, NOT baseURL. The default `/` route goes
+          // through Auth0 middleware, which crashes the dev server on
+          // first request when AUTH0_DOMAIN is a placeholder (the case in
+          // the e2e CI job) and never returns — Playwright then waits the
+          // full timeout. /api/health is excluded from the middleware
+          // matcher and just returns 200 JSON, so readiness is reliable.
+          url: `${baseURL}/api/health`,
           // Next dev compiles on first request, so the wait is generous.
           timeout: 120_000,
           // Reuse a server the developer already started outside the run;
