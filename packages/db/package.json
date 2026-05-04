@@ -8,7 +8,7 @@
   "scripts": {
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
+    "db:migrate": "dotenv -e ../../apps/web/.env.local -- prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:seed": "dotenv -e ../../apps/web/.env.local -- tsx src/seed.ts",
     "db:reset": "dotenv -e ../../apps/web/.env.local -- prisma migrate reset --force --skip-seed && pnpm db:seed",

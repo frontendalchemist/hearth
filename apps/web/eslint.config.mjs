@@ -26,6 +26,10 @@ export default [{
     ...reactPlugin.configs.recommended.rules,
     ...reactHooksPlugin.configs.recommended.rules,
     'react/react-in-jsx-scope': 'off',
+    // TypeScript already enforces prop typing; the runtime prop-types rule
+    // is redundant and chokes on inline subcomponents in shadcn-installed
+    // files (e.g. components/ui/calendar.tsx).
+    'react/prop-types': 'off',
     '@typescript-eslint/no-unused-vars': [
       'error',
       { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
