@@ -1,0 +1,35 @@
+{
+  "common": {
+    "appName": "Hearth"
+  },
+  "cookie": {
+    "title": "Cookies & analytics",
+    "body": "We use a sign-in cookie so you stay logged in, and anonymous usage data to understand how Hearth is used. We never share your family's information.",
+    "accept": "Accept all",
+    "decline": "Decline analytics"
+  },
+  "consent": {
+    "title": "Welcome to Hearth",
+    "body": "Before we get started, please review and accept the following. We're handling sensitive family information, so your acceptance is logged with the date and time for our records.",
+    "termsLabel": "I have read and agree to the Terms of Service.",
+    "termsLinkText": "Read the Terms of Service",
+    "privacyLabel": "I have read and agree to the Privacy Policy, including the HIPAA Notice of Privacy Practices.",
+    "privacyLinkText": "Read the Privacy Policy",
+    "continue": "Continue",
+    "signOut": "Sign out instead",
+    "errorRequired": "Please accept both the Terms of Service and the Privacy Policy to continue.",
+    "errorSubmit": "Something went wrong recording your acceptance. Please try again."
+  },
+  "auth": {},
+  "home": {},
+  "vault": {},
+  "alerts": {},
+  "family": {},
+  "legal": {
+    "privacyTitle": "Privacy Policy",
+    "termsTitle": "Terms of Service",
+    "draftBanner": "DRAFT — Placeholder legal copy pending review by counsel. Do not rely on this content for legal purposes.",
+    "lastUpdated": "Last updated",
+    "backToHome": "Back to Hearth"
+  }
+}
