@@ -31,7 +31,11 @@ function Calendar({
     <DayPicker
       showOutsideDays={showOutsideDays}
       className={cn(
-        "group/calendar bg-background p-2 [--cell-radius:var(--radius-md)] [--cell-size:--spacing(7)] in-data-[slot=card-content]:bg-transparent in-data-[slot=popover-content]:bg-transparent",
+        // Note: shadcn ships --cell-size using a Tailwind 4 runtime-spacing
+        // function that LightningCSS rejects on minify under Tailwind 3.
+        // We hardcode 1.75rem (= default spacing scale 7). Re-apply if you
+        // re-add this component via the shadcn CLI.
+        "group/calendar bg-background p-2 [--cell-radius:var(--radius-md)] [--cell-size:1.75rem] in-data-[slot=card-content]:bg-transparent in-data-[slot=popover-content]:bg-transparent",
         String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
         String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
         className
