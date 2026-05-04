@@ -1,6 +1,9 @@
 import { z } from 'zod'
 import type { UseFormReturn } from 'react-hook-form'
-import { CareStage } from '@hearth/db'
+// Type-only import: erased at build time so this file (imported by client
+// components) doesn't pull `@hearth/db` — and transitively
+// `audit-log.ts` / `node:async_hooks` — into the browser bundle.
+import type { CareStage } from '@hearth/db'
 
 export const RELATIONSHIPS = [
   'Mother',
@@ -12,6 +15,17 @@ export const RELATIONSHIPS = [
   'Grandparent',
   'Other',
 ] as const
+
+// Runtime mirror of the Prisma `CareStage` enum, in declaration order. The
+// `satisfies readonly CareStage[]` check fails the build if a stage is added
+// or removed in `schema.prisma` without updating this list.
+export const CARE_STAGES = [
+  'STAGE_1_INDEPENDENT',
+  'STAGE_2_SOME_HELP',
+  'STAGE_3_ASSISTED_LIVING',
+  'STAGE_4_MEMORY_CARE',
+  'STAGE_5_END_OF_LIFE',
+] as const satisfies readonly CareStage[]
 
 export const STAGE_LABELS: Record<CareStage, string> = {
   STAGE_1_INDEPENDENT: 'Stage 1 — Independent',
@@ -39,7 +53,7 @@ export const wizardSchema = z.object({
   zipCode: z
     .string()
     .regex(/^\d{5}(-\d{4})?$/, 'Please enter a valid 5-digit ZIP code'),
-  careStage: z.nativeEnum(CareStage),
+  careStage: z.enum(CARE_STAGES),
 })
 
 export type WizardData = z.infer<typeof wizardSchema>

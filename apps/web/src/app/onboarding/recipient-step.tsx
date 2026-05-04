@@ -14,9 +14,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { DateField } from '@/components/shared/date-field'
-import { CareStage } from '@hearth/db'
 
 import {
+  CARE_STAGES,
   HUNDRED_TWENTY_YEARS_AGO,
   RELATIONSHIPS,
   STAGE_LABELS,
@@ -147,7 +147,7 @@ export function RecipientStep({
                 onValueChange={field.onChange}
                 className="mt-2 space-y-2"
               >
-                {Object.values(CareStage).map((stage) => (
+                {CARE_STAGES.map((stage) => (
                   <div key={stage} className="flex items-center gap-2">
                     <RadioGroupItem id={stage} value={stage} />
                     <Label htmlFor={stage} className="font-normal">

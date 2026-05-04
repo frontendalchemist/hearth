@@ -62,12 +62,15 @@ jobs:
         # Every displayed date must route through src/lib/format/date.ts so
         # the user's locale (User.locale, exposed via requireAuth) is honored.
         # Test fixtures legitimately pass literal locales to formatDate, so
-        # *.test.* files are excluded.
+        # *.test.* files are excluded. components/ui/ is exempted because
+        # shadcn-vendored files (e.g. calendar.tsx) are owned by the
+        # registry — patching them is undone on the next `shadcn add`.
         run: |
           set -e
           if grep -RInE \
               --include='*.ts' --include='*.tsx' \
               --exclude='*.test.ts' --exclude='*.test.tsx' \
+              --exclude-dir='ui' \
               '\.(toLocaleString|toLocaleDateString|toLocaleTimeString)\(' \
               apps/web/src; then
             echo "::error::Use formatDate from @/lib/format/date.ts — Date.prototype.toLocale*() is forbidden."
@@ -76,6 +79,7 @@ jobs:
           if grep -RInE \
               --include='*.ts' --include='*.tsx' \
               --exclude='*.test.ts' --exclude='*.test.tsx' \
+              --exclude-dir='ui' \
               "['\"]en-US['\"]" \
               apps/web/src; then
             echo "::error::Hardcoded 'en-US' locale found — pass requireAuth().locale instead."
