@@ -16,7 +16,7 @@ export default async function DashboardLayout({
   try {
     user = await requireAuth()
   } catch {
-    redirect('/auth/login' as Route)
+    redirect('/login' as Route)
   }
 
   // Gate every authenticated dashboard render on having accepted the current

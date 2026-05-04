@@ -13,7 +13,7 @@ export default async function ConsentPage() {
   try {
     user = await requireAuth()
   } catch {
-    redirect('/auth/login' as Route)
+    redirect('/login' as Route)
   }
 
   // Already accepted everything → don't show the form, just send them on.
