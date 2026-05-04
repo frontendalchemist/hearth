@@ -34,6 +34,14 @@ export function RecipientStep({
   onBack: () => void
 }) {
   const rootError = form.formState.errors.root?.message
+  // `root` is the server-error slot; everything else is field-level. We only
+  // want the summary banner to flag missed/invalid inputs, not duplicate the
+  // server-error display below the form.
+  const validationErrorCount = Object.keys(form.formState.errors).filter(
+    (key) => key !== 'root',
+  ).length
+  const showErrorSummary =
+    form.formState.isSubmitted && validationErrorCount > 0
 
   return (
     <div className="space-y-6">
@@ -43,6 +51,19 @@ export function RecipientStep({
           We&apos;ll set up a private workspace for them with you as Admin.
         </p>
       </header>
+
+      {showErrorSummary && (
+        <div
+          role="alert"
+          className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-foreground"
+        >
+          Please correct the{' '}
+          {validationErrorCount === 1
+            ? 'highlighted field'
+            : `${validationErrorCount} highlighted fields`}{' '}
+          below to continue.
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
@@ -81,7 +102,10 @@ export function RecipientStep({
           name="relationship"
           render={({ field, fieldState }) => (
             <>
-              <Select value={field.value} onValueChange={field.onChange}>
+              <Select
+                value={field.value ?? ''}
+                onValueChange={field.onChange}
+              >
                 <SelectTrigger
                   id="relationship"
                   className="mt-1 w-full"
@@ -143,7 +167,7 @@ export function RecipientStep({
           render={({ field, fieldState }) => (
             <>
               <RadioGroup
-                value={field.value}
+                value={field.value ?? ''}
                 onValueChange={field.onChange}
                 className="mt-2 space-y-2"
               >
