@@ -1,7 +1,10 @@
 import type { Metadata } from 'next'
 import { Inter, Lora } from 'next/font/google'
+import { NextIntlClientProvider } from 'next-intl'
+import { getLocale, getMessages } from 'next-intl/server'
 import { PostHogProvider } from '@/components/providers/posthog-provider'
 import { TooltipProvider } from '@/components/ui/tooltip'
+import { CookieConsentBanner } from '@/components/shared/cookie-consent-banner'
 import './globals.css'
 
 const inter = Inter({
@@ -19,17 +22,23 @@ export const metadata: Metadata = {
   description: 'Family caregiving, coordinated',
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const locale = await getLocale()
+  const messages = await getMessages()
+
   return (
-    <html lang="en" className={`${inter.variable} ${lora.variable}`}>
+    <html lang={locale} className={`${inter.variable} ${lora.variable}`}>
       <body>
-        <PostHogProvider>
-          <TooltipProvider>{children}</TooltipProvider>
-        </PostHogProvider>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <PostHogProvider>
+            <TooltipProvider>{children}</TooltipProvider>
+            <CookieConsentBanner />
+          </PostHogProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   )

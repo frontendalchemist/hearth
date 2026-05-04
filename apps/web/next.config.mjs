@@ -1,4 +1,7 @@
 import { withSentryConfig } from '@sentry/nextjs'
+import createNextIntlPlugin from 'next-intl/plugin'
+
+const withNextIntl = createNextIntlPlugin('./src/i18n.ts')
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -37,8 +40,10 @@ const nextConfig = {
 // by NEXT_PUBLIC_SENTRY_DSN), it just can't tag releases or symbolicate.
 const sentryEnabled = Boolean(process.env.SENTRY_AUTH_TOKEN)
 
+const baseConfig = withNextIntl(nextConfig)
+
 export default sentryEnabled
-  ? withSentryConfig(nextConfig, {
+  ? withSentryConfig(baseConfig, {
       org: process.env.SENTRY_ORG,
       project: process.env.SENTRY_PROJECT,
       authToken: process.env.SENTRY_AUTH_TOKEN,
@@ -56,4 +61,4 @@ export default sentryEnabled
       // (the same trick we use for PostHog at /ingest).
       tunnelRoute: '/monitoring',
     })
-  : nextConfig
+  : baseConfig

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// Vercel Cron: runs Mondays at 10am UTC (see vercel.json)
+// Triggered Mondays at 10:00 UTC by netlify/functions/ai-nudges.ts.
+// Bearer token is the shared CRON_SECRET (set in Netlify env).
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization')
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {

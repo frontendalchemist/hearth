@@ -13,6 +13,8 @@ export type AuthUser = {
   sub: string
   email: string
   name: string
+  /** BCP-47 tag from `User.locale`. Defaults to "en" via the schema. */
+  locale: string
   roles: string[]
 }
 
@@ -48,7 +50,7 @@ export async function requireAuth(): Promise<AuthUser> {
 
   const user = await db.user.findUnique({
     where: { auth0Sub: session.user.sub },
-    select: { id: true, email: true, name: true },
+    select: { id: true, email: true, name: true, locale: true },
   })
 
   if (!user) {
@@ -65,6 +67,7 @@ export async function requireAuth(): Promise<AuthUser> {
     sub: session.user.sub,
     email: user.email,
     name: user.name,
+    locale: user.locale,
     roles,
   }
 }
