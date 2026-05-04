@@ -206,6 +206,7 @@ URGENT URGENT
     DateTime createdAt 
     DateTime updatedAt 
     DateTime deletedAt "❓"
+    String zipCode "❓"
     }
   
 
