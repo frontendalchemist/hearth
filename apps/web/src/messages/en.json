@@ -24,5 +24,12 @@
   "home": {},
   "vault": {},
   "alerts": {},
-  "family": {}
+  "family": {},
+  "legal": {
+    "privacyTitle": "Privacy Policy",
+    "termsTitle": "Terms of Service",
+    "draftBanner": "DRAFT — Placeholder legal copy pending review by counsel. Do not rely on this content for legal purposes.",
+    "lastUpdated": "Last updated",
+    "backToHome": "Back to Hearth"
+  }
 }

@@ -78,10 +78,11 @@ export async function requireAuth(): Promise<AuthUser> {
  * `(dashboard)/layout.tsx` and any `page.tsx` rendered under it.
  *
  * Differs from `requireAuth()` in two ways:
- *   - On no session, calls `redirect('/auth/login')` (an HTTP 307 from the
+ *   - On no session, calls `redirect('/login')` (an HTTP 307 from the
  *     framework) instead of throwing a 401 Response. This is what users
  *     actually want from a page render — a 401 response in the body would
- *     just look broken.
+ *     just look broken. `/login` is the local branded splash; its "Sign in"
+ *     CTA bounces into the SDK's `/auth/login` to start the Auth0 flow.
  *   - Returns the raw `SessionData` rather than the loaded `AuthUser`, since
  *     layouts mostly need the cookie-side session shape and not the DB row.
  *     Callers that need the cuid should call `requireAuth()` instead.
@@ -92,7 +93,7 @@ export async function requireAuth(): Promise<AuthUser> {
 export async function requireSession(): Promise<SessionData> {
   const session = await auth0.getSession()
   if (!session) {
-    redirect('/auth/login' as Route)
+    redirect('/login' as Route)
   }
   await ensureUserSynced(session)
   return session
