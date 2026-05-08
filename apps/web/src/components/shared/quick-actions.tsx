@@ -5,7 +5,7 @@ import { type LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
-export type QuickActionVariant = "primary" | "secondary"
+export type QuickActionVariant = "primary" | "secondary" | "destructive"
 
 export interface QuickAction {
   label: string
@@ -18,9 +18,13 @@ interface QuickActionsProps extends React.HTMLAttributes<HTMLDivElement> {
   actions: QuickAction[]
 }
 
-const VARIANT_TO_BUTTON: Record<QuickActionVariant, "default" | "outline"> = {
+const VARIANT_TO_BUTTON: Record<
+  QuickActionVariant,
+  "default" | "outline" | "destructive"
+> = {
   primary: "default",
   secondary: "outline",
+  destructive: "destructive",
 }
 
 export function QuickActions({
