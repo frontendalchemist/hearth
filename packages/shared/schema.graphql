@@ -1,6 +1,39 @@
+"""
+A person being cared for, scoped to the requesting caregiver's memberships.
+"""
+type CareRecipient {
+  """Years between dateOfBirth and today, or null if DOB is unknown."""
+  age: Int
+  careStage: CareStage
+  dateOfBirth: Date
+  firstName: String
+  id: ID
+  lastName: String
+  photoUrl: String
+
+  """
+  How the requesting caregiver relates to this recipient (e.g. 'daughter'). Null when the membership doesn't carry a label.
+  """
+  relationship: String
+}
+
+enum CareStage {
+  STAGE_1_INDEPENDENT
+  STAGE_2_SOME_HELP
+  STAGE_3_ASSISTED_LIVING
+  STAGE_4_MEMORY_CARE
+  STAGE_5_END_OF_LIFE
+}
+
+"""ISO-8601 timestamp."""
+scalar Date
+
 type Query {
   """
-  Liveness probe — always returns true. Placeholder until typed queries are added in Sprint 1.
+  Care recipients the authenticated caregiver is a member of, soft-delete-filtered.
   """
+  careRecipients: [CareRecipient!]
+
+  """Liveness probe. Always returns true."""
   serverHealth: Boolean
 }
