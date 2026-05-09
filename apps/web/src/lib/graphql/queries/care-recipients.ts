@@ -49,3 +49,38 @@ export function useCareRecipientsQuery() {
     queryFn: fetchCareRecipients,
   })
 }
+
+const CARE_RECIPIENT_QUERY = /* GraphQL */ `
+  query CareRecipient($id: ID!) {
+    careRecipient(id: $id) {
+      id
+      firstName
+      lastName
+      dateOfBirth
+      careStage
+      photoUrl
+      relationship
+      age
+    }
+  }
+`
+
+export const careRecipientQueryKey = (id: string) =>
+  ['careRecipient', id] as const
+
+export async function fetchCareRecipient(
+  id: string,
+): Promise<CareRecipient | null> {
+  const data = await graphqlFetch<
+    { careRecipient: CareRecipient | null },
+    { id: string }
+  >(CARE_RECIPIENT_QUERY, { id })
+  return data.careRecipient
+}
+
+export function useCareRecipientQuery(id: string) {
+  return useQuery({
+    queryKey: careRecipientQueryKey(id),
+    queryFn: () => fetchCareRecipient(id),
+  })
+}

@@ -5,6 +5,8 @@ export { AlertBanner } from "./alert-banner"
 export { EmptyState } from "./empty-state"
 export { Shell } from "./shell"
 export { CareRecipientCard, type CareStage } from "./care-recipient-card"
+export { CareModuleTile } from "./care-module-tile"
+export { Breadcrumb, type BreadcrumbItem } from "./breadcrumb"
 export {
   QuickActions,
   type QuickAction,
