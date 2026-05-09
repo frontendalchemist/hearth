@@ -4,14 +4,16 @@ vi.mock('@hearth/db', () => ({
   db: {
     careRecipientMembership: {
       findMany: vi.fn(),
+      findFirst: vi.fn(),
     },
   },
 }))
 
 import { db } from '@hearth/db'
-import { careRecipientsResolver } from './schema'
+import { careRecipientResolver, careRecipientsResolver } from './schema'
 
 const mockFindMany = vi.mocked(db.careRecipientMembership.findMany)
+const mockFindFirst = vi.mocked(db.careRecipientMembership.findFirst)
 
 const mockUser = {
   id: 'user-cuid-1',
@@ -24,6 +26,7 @@ const mockUser = {
 
 beforeEach(() => {
   mockFindMany.mockReset()
+  mockFindFirst.mockReset()
 })
 
 describe('careRecipientsResolver', () => {
@@ -169,5 +172,97 @@ describe('careRecipientsResolver', () => {
     const result = await careRecipientsResolver({ user: mockUser })
 
     expect(result).toEqual([])
+  })
+})
+
+describe('careRecipientResolver', () => {
+  it('throws UNAUTHORIZED when ctx.user is null', async () => {
+    await expect(
+      careRecipientResolver({ user: null }, 'cr-1'),
+    ).rejects.toMatchObject({
+      message: 'Unauthorized',
+      extensions: { code: 'UNAUTHORIZED' },
+    })
+    expect(mockFindFirst).not.toHaveBeenCalled()
+  })
+
+  it('looks up membership scoped to caller and recipient id', async () => {
+    mockFindFirst.mockResolvedValue(null)
+
+    await careRecipientResolver({ user: mockUser }, 'cr-1')
+
+    expect(mockFindFirst).toHaveBeenCalledWith({
+      where: { userId: 'user-cuid-1', careRecipientId: 'cr-1' },
+      include: { careRecipient: true },
+    })
+  })
+
+  it('returns the recipient with membership-scoped relationship', async () => {
+    const dob = new Date('1948-06-15T00:00:00.000Z')
+    mockFindFirst.mockResolvedValue({
+      id: 'mem-1',
+      userId: 'user-cuid-1',
+      careRecipientId: 'cr-1',
+      role: 'ADMIN',
+      relationship: 'daughter',
+      createdAt: new Date('2026-01-01'),
+      careRecipient: {
+        id: 'cr-1',
+        firstName: 'Margaret',
+        lastName: 'Lee',
+        dateOfBirth: dob,
+        photoUrl: null,
+        careStage: 'STAGE_4_MEMORY_CARE',
+        createdAt: new Date('2026-01-01'),
+        updatedAt: new Date('2026-01-01'),
+        deletedAt: null,
+      },
+    } as never)
+
+    const result = await careRecipientResolver({ user: mockUser }, 'cr-1')
+
+    expect(result).toEqual({
+      id: 'cr-1',
+      firstName: 'Margaret',
+      lastName: 'Lee',
+      dateOfBirth: dob,
+      careStage: 'STAGE_4_MEMORY_CARE',
+      photoUrl: null,
+      relationship: 'daughter',
+    })
+  })
+
+  it('returns null when the caller is not a member of the recipient', async () => {
+    mockFindFirst.mockResolvedValue(null)
+
+    const result = await careRecipientResolver({ user: mockUser }, 'cr-other')
+
+    expect(result).toBeNull()
+  })
+
+  it('returns null when the recipient is soft-deleted', async () => {
+    mockFindFirst.mockResolvedValue({
+      id: 'mem-1',
+      userId: 'user-cuid-1',
+      careRecipientId: 'cr-tombstoned',
+      role: 'ADMIN',
+      relationship: 'daughter',
+      createdAt: new Date(),
+      careRecipient: {
+        id: 'cr-tombstoned',
+        firstName: 'Removed',
+        lastName: 'Recipient',
+        dateOfBirth: null,
+        photoUrl: null,
+        careStage: 'STAGE_1_INDEPENDENT',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        deletedAt: new Date('2026-01-01'),
+      },
+    } as never)
+
+    const result = await careRecipientResolver({ user: mockUser }, 'cr-tombstoned')
+
+    expect(result).toBeNull()
   })
 })

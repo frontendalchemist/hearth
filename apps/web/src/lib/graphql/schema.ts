@@ -109,6 +109,40 @@ export async function careRecipientsResolver(
     }))
 }
 
+export async function careRecipientResolver(
+  ctx: GraphQLContext,
+  id: string,
+): Promise<CareRecipientShape | null> {
+  if (!ctx.user) {
+    throw new GraphQLError('Unauthorized', {
+      extensions: { code: 'UNAUTHORIZED', http: { status: 401 } },
+    })
+  }
+
+  // Membership lookup is the auth check: a caregiver only sees recipients
+  // they belong to. Returning null instead of a 403 keeps the surface area
+  // small (the page renders a generic not-found state) and avoids leaking
+  // existence of recipient IDs across tenants.
+  const membership = await db.careRecipientMembership.findFirst({
+    where: { userId: ctx.user.id, careRecipientId: id },
+    include: { careRecipient: true },
+  })
+
+  if (!membership?.careRecipient || membership.careRecipient.deletedAt !== null) {
+    return null
+  }
+
+  return {
+    id: membership.careRecipient.id,
+    firstName: membership.careRecipient.firstName,
+    lastName: membership.careRecipient.lastName,
+    dateOfBirth: membership.careRecipient.dateOfBirth,
+    careStage: membership.careRecipient.careStage,
+    photoUrl: membership.careRecipient.photoUrl,
+    relationship: membership.relationship,
+  }
+}
+
 builder.queryType({
   fields: (t) => ({
     careRecipients: t.field({
@@ -116,6 +150,14 @@ builder.queryType({
       description:
         'Care recipients the authenticated caregiver is a member of, soft-delete-filtered.',
       resolve: (_root, _args, ctx) => careRecipientsResolver(ctx),
+    }),
+    careRecipient: t.field({
+      type: 'CareRecipient',
+      nullable: true,
+      args: { id: t.arg.id({ required: true }) },
+      description:
+        'A single care recipient by id, scoped to the requesting caregiver. Null when not a member or soft-deleted.',
+      resolve: (_root, args, ctx) => careRecipientResolver(ctx, String(args.id)),
     }),
     serverHealth: t.boolean({
       description: 'Liveness probe. Always returns true.',
