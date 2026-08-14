@@ -47,3 +47,7 @@ pnpm-debug.log*
 
 *storybook.log
 storybook-static
+
+# Internal ops docs — never publish (recon value; see rotate-secrets 
+  runbook)
+internal_docs/
