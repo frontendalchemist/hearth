@@ -89,7 +89,7 @@ Route handlers under `apps/web/src/app/api/jobs/*` are protected by a shared bea
 
 - Next.js App Router with route groups: `(auth)` for unauthenticated pages, `(dashboard)` for the authenticated shell (its `layout.tsx` redirects to `/auth/login` when no session), and `api/` for Route Handlers.
 - `experimental.typedRoutes` is on — `redirect('/auth/login' as Route)` and similar casts are deliberate, not lint noise.
-- UI components: shadcn/ui (style `radix-nova`) installed into `apps/web/src/components/ui/` via `pnpm --filter @hearth/web dlx shadcn@latest add <name>`. Aliases: `@/components`, `@/lib`, `@/components/ui`, `@/hooks`. Icon library is lucide.
+- UI components: shadcn/ui (style `radix-nova`) installed into `apps/web/src/components/ui/` via `pnpm dlx shadcn@latest add <name> -c apps/web` (run from the repo root; the `-c` is shadcn's own workspace flag — `pnpm --filter` and `pnpm -C` both confuse the CLI's monorepo detection). Aliases: `@/components`, `@/lib`, `@/components/ui`, `@/hooks`. Icon library is lucide.
 - Tailwind with CSS variables; Inter (sans) and Lora (serif) loaded as `--font-inter` / `--font-lora` in the root layout.
 
 ### TypeScript

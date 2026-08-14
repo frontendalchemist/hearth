@@ -232,11 +232,11 @@ describe("requireAuth", () => {
 });
 
 describe("requireSession", () => {
-  it("redirects to /auth/login when there is no session (no DB write on anonymous traffic)", async () => {
+  it("redirects to /login when there is no session (no DB write on anonymous traffic)", async () => {
     getSession.mockResolvedValue(null);
 
     await expect(requireSession()).rejects.toThrow("NEXT_REDIRECT");
-    expect(mockRedirect).toHaveBeenCalledWith("/auth/login");
+    expect(mockRedirect).toHaveBeenCalledWith("/login");
     expect(ensureSynced).not.toHaveBeenCalled();
   });
 
