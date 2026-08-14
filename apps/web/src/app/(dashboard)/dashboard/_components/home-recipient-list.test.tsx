@@ -30,6 +30,7 @@ const margaret: CareRecipient = {
   photoUrl: null,
   relationship: "mother",
   age: 77,
+  activeAlertCount: 0,
 }
 
 const harold: CareRecipient = {
@@ -41,6 +42,7 @@ const harold: CareRecipient = {
   photoUrl: null,
   relationship: "father-in-law",
   age: 89,
+  activeAlertCount: 0,
 }
 
 describe("HomeRecipientList", () => {

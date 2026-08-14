@@ -6,6 +6,8 @@
 
 import { faker } from '@faker-js/faker'
 import {
+  AlertPriority,
+  AlertType,
   AuditAction,
   CareLogCategory,
   CareStage,
@@ -68,6 +70,170 @@ async function main() {
       relationship: 'daughter',
     },
   })
+
+  // Extra recipients so the Home/Overview grid renders multiple cards across
+  // every care stage (Dorothy above is STAGE_2). All membershipped to the
+  // admin as ADMIN so they surface in the membership-scoped `careRecipients`
+  // query. Fixed IDs + upsert keep `pnpm db:seed` idempotent like Dorothy.
+  const extraRecipients = [
+    {
+      id: 'seed-harold-002',
+      firstName: 'Harold',
+      lastName: 'Bennett',
+      dateOfBirth: new Date('1947-06-10'),
+      careStage: CareStage.STAGE_1_INDEPENDENT,
+      zipCode: '97214',
+      relationship: 'father',
+    },
+    {
+      id: 'seed-margaret-003',
+      firstName: 'Margaret',
+      lastName: 'Doyle',
+      dateOfBirth: new Date('1944-09-05'),
+      careStage: CareStage.STAGE_3_ASSISTED_LIVING,
+      zipCode: '97035',
+      relationship: 'aunt',
+    },
+    {
+      id: 'seed-rosa-004',
+      firstName: 'Rosa',
+      lastName: 'Alvarez',
+      dateOfBirth: new Date('1938-11-02'),
+      careStage: CareStage.STAGE_4_MEMORY_CARE,
+      zipCode: '97201',
+      relationship: 'mother-in-law',
+    },
+    {
+      id: 'seed-walter-005',
+      firstName: 'Walter',
+      lastName: 'Nguyen',
+      dateOfBirth: new Date('1932-01-20'),
+      careStage: CareStage.STAGE_5_END_OF_LIFE,
+      zipCode: '97202',
+      relationship: 'grandfather',
+    },
+  ]
+
+  for (const r of extraRecipients) {
+    const recipient = await db.careRecipient.upsert({
+      where: { id: r.id },
+      update: {},
+      create: {
+        id: r.id,
+        firstName: r.firstName,
+        lastName: r.lastName,
+        dateOfBirth: r.dateOfBirth,
+        careStage: r.careStage,
+        zipCode: r.zipCode,
+      },
+    })
+
+    await db.careRecipientMembership.upsert({
+      where: {
+        userId_careRecipientId: {
+          userId: admin.id,
+          careRecipientId: recipient.id,
+        },
+      },
+      update: {},
+      create: {
+        userId: admin.id,
+        careRecipientId: recipient.id,
+        role: Role.ADMIN,
+        relationship: r.relationship,
+      },
+    })
+  }
+
+  // Alerts so the Overview cards can render varied "N alerts" badges once the
+  // count is wired through GraphQL + home-recipient-list. Active = not
+  // dismissed/read (the states an alert-count query should filter on).
+  // resourceType/resourceId are set (not empty) so the
+  // @@unique([userId, type, resourceType, resourceId]) key stays distinct per
+  // alert and re-seeding upserts instead of duplicating. Counts by recipient:
+  // Dorothy 2, Rosa 3, Walter 1, Harold + Margaret 0 — so the grid spans 0–3.
+  const ALERT_RESOURCE_TYPE = 'seed'
+  const alertFixtures: Array<{
+    careRecipientId: string
+    type: AlertType
+    priority: AlertPriority
+    title: string
+    body: string
+    resourceId: string
+  }> = [
+    {
+      careRecipientId: 'seed-dorothy-001',
+      type: AlertType.DOCUMENT_EXPIRING,
+      priority: AlertPriority.HIGH,
+      title: 'Advance directive expires in 30 days',
+      body: 'Review and renew before it lapses.',
+      resourceId: 'seed-alert-1',
+    },
+    {
+      careRecipientId: 'seed-dorothy-001',
+      type: AlertType.MEDICATION_LOW_REFILL,
+      priority: AlertPriority.MEDIUM,
+      title: 'A medication refill is running low',
+      body: 'About 5 days of supply remaining.',
+      resourceId: 'seed-alert-2',
+    },
+    {
+      careRecipientId: 'seed-rosa-004',
+      type: AlertType.TASK_OVERDUE,
+      priority: AlertPriority.URGENT,
+      title: 'An overdue task needs attention',
+      body: 'A care task has passed its due date.',
+      resourceId: 'seed-alert-3',
+    },
+    {
+      careRecipientId: 'seed-rosa-004',
+      type: AlertType.SCREENING_OVERDUE,
+      priority: AlertPriority.HIGH,
+      title: 'A recommended screening is overdue',
+      body: 'This screening is past its due date.',
+      resourceId: 'seed-alert-4',
+    },
+    {
+      careRecipientId: 'seed-rosa-004',
+      type: AlertType.DOCUMENT_MISSING,
+      priority: AlertPriority.MEDIUM,
+      title: 'A key document is missing',
+      body: 'No power of attorney is on file.',
+      resourceId: 'seed-alert-5',
+    },
+    {
+      careRecipientId: 'seed-walter-005',
+      type: AlertType.COVERAGE_EXPIRING,
+      priority: AlertPriority.HIGH,
+      title: 'Insurance coverage is expiring soon',
+      body: 'Coverage ends within the next month.',
+      resourceId: 'seed-alert-6',
+    },
+  ]
+
+  for (const a of alertFixtures) {
+    await db.alert.upsert({
+      where: {
+        userId_type_resourceType_resourceId: {
+          userId: admin.id,
+          type: a.type,
+          resourceType: ALERT_RESOURCE_TYPE,
+          resourceId: a.resourceId,
+        },
+      },
+      update: {},
+      create: {
+        userId: admin.id,
+        careRecipientId: a.careRecipientId,
+        type: a.type,
+        priority: a.priority,
+        title: a.title,
+        body: a.body,
+        resourceType: ALERT_RESOURCE_TYPE,
+        resourceId: a.resourceId,
+      },
+    })
+  }
 
   // 5 documents across categories.
   const docFixtures: Array<{

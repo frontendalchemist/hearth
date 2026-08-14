@@ -72,6 +72,21 @@ builder.objectType('CareRecipient', {
       description: 'Years between dateOfBirth and today, or null if DOB is unknown.',
       resolve: (parent) => (parent.dateOfBirth ? computeAge(parent.dateOfBirth) : null),
     }),
+    activeAlertCount: t.int({
+      description:
+        "Count of the viewer's active (unread, not dismissed) alerts for this recipient.",
+      resolve: async (parent, _args, ctx) => {
+        if (!ctx.user) return 0
+        return db.alert.count({
+          where: {
+            careRecipientId: parent.id,
+            userId: ctx.user.id, // scope to the viewer — don't leak other members' alerts
+            isDismissed: false,
+            isRead: false,
+          },
+        })
+      },
+    }),
   }),
 })
 
