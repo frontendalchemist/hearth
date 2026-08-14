@@ -3,6 +3,7 @@ import type { Route } from "next";
 import { requireAuth } from "@/lib/auth";
 import { hasAcceptedAllRequired } from "@/lib/consent";
 import { Shell } from "@/components/shared";
+import { QueryProvider } from "@/components/providers/query-provider";
 import { hasCompletedOnboarding } from "@/lib/onboarding";
 
 export default async function DashboardLayout({
@@ -31,5 +32,9 @@ export default async function DashboardLayout({
     redirect("/onboarding" as Route);
   }
 
-  return <Shell>{children}</Shell>;
+  return (
+    <QueryProvider>
+      <Shell>{children}</Shell>
+    </QueryProvider>
+  );
 }
