@@ -34,6 +34,7 @@ const margaret: CareRecipient = {
   photoUrl: null,
   relationship: "mother",
   age: 77,
+  activeAlertCount: 0,
 }
 
 describe("CareRecordPage", () => {

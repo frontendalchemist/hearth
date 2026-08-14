@@ -21,14 +21,21 @@ export default async function DashboardLayout({
     redirect("/login" as Route);
   }
 
+  // Dev-only: skip the consent + onboarding gates alongside the auth bypass in
+  // requireAuth(), so local work lands straight on the dashboard. NODE_ENV
+  // guard keeps this dead in production even if the env var leaks.
+  const devAuthBypass =
+    process.env.NODE_ENV !== "production" &&
+    process.env.DEV_AUTH_BYPASS === "true";
+
   // Gate every authenticated dashboard render on having accepted the current
   // version of every required consent. Bumping a version in `consent.ts`
   // re-prompts all users automatically.
-  if (!(await hasAcceptedAllRequired(user.id))) {
+  if (!devAuthBypass && !(await hasAcceptedAllRequired(user.id))) {
     redirect("/consent" as Route);
   }
 
-  if (!(await hasCompletedOnboarding(user.id))) {
+  if (!devAuthBypass && !(await hasCompletedOnboarding(user.id))) {
     redirect("/onboarding" as Route);
   }
 

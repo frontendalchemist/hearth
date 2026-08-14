@@ -21,6 +21,26 @@ const { handleRequest } = createYoga<
   graphqlEndpoint: '/api/graphql',
   fetchAPI: { Response, Request },
   context: async (): Promise<GraphQLContext> => {
+    // Dev-only bypass — mirrors requireAuth() so the GraphQL endpoint honors
+    // DEV_AUTH_BYPASS too. Without this the page shell loads (its layout uses
+    // requireAuth) but every data fetch 401s, since this context builds its
+    // own ctx.user from the session instead of going through requireAuth.
+    // NODE_ENV guard keeps it dead in production.
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      process.env.DEV_AUTH_BYPASS === 'true'
+    ) {
+      const devUser = await db.user.findUnique({
+        where: { email: 'admin@hearth.dev' },
+        select: { id: true, email: true, name: true, locale: true },
+      })
+      if (devUser) {
+        return {
+          user: { ...devUser, sub: 'auth0|seed-admin-001', roles: [] },
+        }
+      }
+    }
+
     const session = await auth0.getSession()
     if (!session?.user?.sub) return { user: null }
 

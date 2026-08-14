@@ -1,28 +1,26 @@
-'use client'
+"use client";
 
-import React from 'react'
-import Link from 'next/link'
-import type { Route } from 'next'
-import { usePathname } from 'next/navigation'
-import {
-  FolderOpen,
-  Heart,
-  MessageSquare,
-  Map,
-  Users,
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
+import React from "react";
+import Link from "next/link";
+import type { Route } from "next";
+import { usePathname } from "next/navigation";
+import { FolderOpen, Heart, MessageSquare, Map, Users } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-const navItems: { href: Route; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { href: '/vault', label: 'Family Vault', icon: FolderOpen },
-  { href: '/health-hub', label: 'Health Hub', icon: Heart },
-  { href: '/ai-assistant', label: 'AI Assistant', icon: MessageSquare },
-  { href: '/stage-navigator', label: 'Stage Navigator', icon: Map },
-  { href: '/workspace', label: 'Family Workspace', icon: Users },
-]
+const navItems: {
+  href: Route;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
+  { href: "/vault", label: "Family Vault", icon: FolderOpen },
+  { href: "/health-hub", label: "Health Hub", icon: Heart },
+  { href: "/ai-assistant", label: "AI Assistant", icon: MessageSquare },
+  { href: "/stage-navigator", label: "Stage Navigator", icon: Map },
+  { href: "/workspace", label: "Family Workspace", icon: Users },
+];
 
 export function SidebarNav() {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   return (
     <aside className="w-64 bg-white border-r border-border flex flex-col py-6 px-4 shrink-0">
@@ -35,10 +33,10 @@ export function SidebarNav() {
             key={href}
             href={href}
             className={cn(
-              'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+              "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
               pathname.startsWith(href)
-                ? 'bg-hearth-orange-50 text-hearth-orange-700'
-                : 'text-muted-foreground hover:bg-hearth-orange-50 hover:text-hearth-orange-700'
+                ? "bg-hearth-orange-50 text-hearth-orange-700"
+                : "text-muted-foreground hover:bg-hearth-orange-50 hover:text-hearth-orange-700",
             )}
           >
             <Icon className="h-5 w-5 shrink-0" />
@@ -55,5 +53,5 @@ export function SidebarNav() {
         </Link>
       </div>
     </aside>
-  )
+  );
 }

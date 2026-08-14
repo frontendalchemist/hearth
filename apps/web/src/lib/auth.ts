@@ -40,6 +40,22 @@ const ROLES_CLAIM = 'https://hearth.app/roles'
  * @throws {Response} 401 if no session, or no matching User row.
  */
 export async function requireAuth(): Promise<AuthUser> {
+  // Dev-only auth bypass: return the seeded admin so local work doesn't need
+  // an Auth0 round-trip. The NODE_ENV guard is load-bearing — even if the env
+  // var leaked to a deployed environment, this path stays dead in production.
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    process.env.DEV_AUTH_BYPASS === 'true'
+  ) {
+    const devUser = await db.user.findUnique({
+      where: { email: 'admin@hearth.dev' },
+      select: { id: true, email: true, name: true, locale: true },
+    })
+    if (devUser) {
+      return { ...devUser, sub: 'auth0|seed-admin-001', roles: [] }
+    }
+  }
+
   const session = await auth0.getSession()
 
   if (!session?.user?.sub) {
