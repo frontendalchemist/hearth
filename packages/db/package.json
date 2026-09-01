@@ -16,12 +16,12 @@
     "test:unit": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@prisma/client": "^5.16.0"
+    "@prisma/client": "^7.10.0"
   },
   "devDependencies": {
     "@faker-js/faker": "^9.0.0",
     "dotenv-cli": "^11.0.0",
-    "prisma": "^5.16.0",
+    "prisma": "^7.10.0",
     "prisma-erd-generator": "^2.4.2",
     "tsx": "^4.16.0",
     "typescript": "^5.5.0",
