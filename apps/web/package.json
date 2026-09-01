@@ -23,8 +23,8 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
     "@auth0/nextjs-auth0": "^4.19.0",
-    "@aws-sdk/client-s3": "^3.600.0",
-    "@aws-sdk/s3-request-presigner": "^3.600.0",
+    "@aws-sdk/client-s3": "^3.1121.0",
+    "@aws-sdk/s3-request-presigner": "^3.1121.0",
     "@hearth/db": "workspace:*",
     "@hearth/shared": "workspace:*",
     "@hookform/resolvers": "^5.2.2",
