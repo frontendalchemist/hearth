@@ -81,7 +81,7 @@
     "happy-dom": "^15.0.0",
     "msw": "^2.3.0",
     "postcss": "^8.4.0",
-    "storybook": "^10.3.6",
+    "storybook": "^10.6.2",
     "tailwindcss": "^4.2.4",
     "tsx": "^4.16.0",
     "typescript": "^5.5.0",
